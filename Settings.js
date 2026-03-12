@@ -1,7 +1,7 @@
 
 export const googleAd = {
     enable: true,
-    bottomBarHeight: 140,
+    bottomBarHeight: 130,
 }
 
 var settings = {

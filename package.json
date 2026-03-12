@@ -14,11 +14,13 @@
     "@react-native-async-storage/async-storage": "^1.21.0",
     "@react-native-camera-roll/camera-roll": "^7.9.0",
     "@react-native-clipboard/clipboard": "^1.15.0",
+    "@react-native-community/checkbox": "^0.5.20",
     "@react-native-community/datetimepicker": "^8.4.2",
     "@react-native-community/netinfo": "^11.4.1",
     "@react-native/new-app-screen": "0.83.1",
     "@react-navigation/bottom-tabs": "^7.4.2",
     "@react-navigation/native": "^7.1.14",
+    "add": "^2.0.6",
     "react": "19.2.0",
     "react-native": "0.83.1",
     "react-native-background-timer": "^2.2.0",
@@ -38,7 +40,8 @@
     "react-native-share": "^11.0.4",
     "react-native-svg": "^15.7.1",
     "react-native-vector-icons": "^10.1.0",
-    "react-navigation": "^5.0.0"
+    "react-navigation": "^5.0.0",
+    "yarn": "^1.22.22"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

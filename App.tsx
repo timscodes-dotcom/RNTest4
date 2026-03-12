@@ -31,6 +31,8 @@ import settings, { googleAd } from './Settings';
 import ScreenUtil from './ScreenUtil'; 
 import global from './Global';
 
+import ViewMusic from './ViewMusic';
+
 class App extends Component {
     
   constructor(props) {
@@ -219,7 +221,7 @@ class App extends Component {
                     
                       console.log("Android getDeviceDimensions", dimensions);
 
-                      const adHeight = googleAd.enable === true ? googleAd.bottomBarHeight : 0;
+                      const adHeight = 0; //googleAd.enable === true ? googleAd.bottomBarHeight : 0;
 
                       ScreenUtil.deviceWidth = dimensions.portrait.screenWidth;
                       ScreenUtil.deviceHeight = dimensions.portrait.screenHeight;
@@ -267,7 +269,7 @@ class App extends Component {
                   return;
                 }
 
-                const adHeight = googleAd.enable === true ? googleAd.bottomBarHeight : 0;
+                const adHeight = 0; //googleAd.enable === true ? googleAd.bottomBarHeight : 0;
 
                 var {x, y, width, height} = e.nativeEvent.layout;
                 console.log("init View onLayout", {x, y, width, height});
@@ -444,10 +446,11 @@ class App extends Component {
       <View style={{height:'100%', width:'100%', backgroundColor:'red', flexDirection:'column'
             }}>
         <View style={{height:ScreenUtil.flexHeight, width:ScreenUtil.deviceWidth, backgroundColor:'white', }}>
+          <ViewMusic onCloseFunc={() => {}} />
         </View>
-        {googleAd.enable === true && 
+        {/*googleAd.enable === true && 
           <BannerAd ref={this.bannerRef} unitId={TestIds.ADAPTIVE_BANNER} size={BannerAdSize.LARGE_ANCHORED_ADAPTIVE_BANNER} />
-        }
+        */}
       </View>
     )
   }

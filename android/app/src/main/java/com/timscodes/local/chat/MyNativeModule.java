@@ -15,6 +15,7 @@ import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
+import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.modules.core.DeviceEventManagerModule;
 import com.facebook.react.uimanager.IllegalViewOperationException;
@@ -62,6 +63,7 @@ import android.provider.OpenableColumns;
 import android.Manifest;
 
 import android.provider.Settings;
+import android.provider.MediaStore;
 
 //import com.fxtf.gx.live.NotificationService;
 
@@ -808,4 +810,91 @@ public class MyNativeModule extends ReactContextBaseJavaModule {
     
     return insets;
   }
+
+    @ReactMethod
+    public void getMusicFileList(Promise promise) {
+        try {
+            if (!hasAudioReadPermission()) {
+                promise.reject("E_PERMISSION", "Missing audio read permission. Please request READ_MEDIA_AUDIO (Android 13+) or READ_EXTERNAL_STORAGE.");
+                return;
+            }
+
+            Uri collection = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
+            String[] projection = {
+                    MediaStore.Audio.Media.TITLE,
+                    MediaStore.Audio.Media.ARTIST,
+                    MediaStore.Audio.Media.ALBUM,
+                    MediaStore.Audio.Media.DATA,
+                    MediaStore.Audio.Media.DURATION
+            };
+            String selection = MediaStore.Audio.Media.IS_MUSIC + " != 0";
+            String sortOrder = MediaStore.Audio.Media.TITLE + " ASC";
+
+            WritableArray musicList = Arguments.createArray();
+
+            try (Cursor cursor = getReactApplicationContext().getContentResolver().query(
+                    collection,
+                    projection,
+                    selection,
+                    null,
+                    sortOrder
+            )) {
+                if (cursor == null) {
+                    promise.resolve(musicList);
+                    return;
+                }
+
+                int titleIndex = cursor.getColumnIndex(MediaStore.Audio.Media.TITLE);
+                int artistIndex = cursor.getColumnIndex(MediaStore.Audio.Media.ARTIST);
+                int albumIndex = cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM);
+                int dataIndex = cursor.getColumnIndex(MediaStore.Audio.Media.DATA);
+                int durationIndex = cursor.getColumnIndex(MediaStore.Audio.Media.DURATION);
+
+                while (cursor.moveToNext()) {
+                    WritableMap item = Arguments.createMap();
+                    item.putString("TITLE", getCursorString(cursor, titleIndex));
+                    item.putString("ARTIST", getCursorString(cursor, artistIndex));
+                    item.putString("ALBUM", getCursorString(cursor, albumIndex));
+                    item.putString("DATA", getCursorString(cursor, dataIndex));
+                    item.putDouble("DURATION", (double) getCursorLong(cursor, durationIndex));
+                    musicList.pushMap(item);
+                }
+            }
+
+            promise.resolve(musicList);
+        } catch (SecurityException e) {
+            promise.reject("E_SECURITY", "No permission to query MediaStore audio.", e);
+        } catch (Exception e) {
+            promise.reject("E_MEDIASTORE", "Failed to read music files: " + e.getMessage(), e);
+        }
+    }
+
+    private boolean hasAudioReadPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            return ContextCompat.checkSelfPermission(
+                    getReactApplicationContext(),
+                    Manifest.permission.READ_MEDIA_AUDIO
+            ) == PackageManager.PERMISSION_GRANTED;
+        }
+
+        return ContextCompat.checkSelfPermission(
+                getReactApplicationContext(),
+                Manifest.permission.READ_EXTERNAL_STORAGE
+        ) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private String getCursorString(Cursor cursor, int index) {
+        if (index < 0 || cursor.isNull(index)) {
+            return "";
+        }
+        String value = cursor.getString(index);
+        return value == null ? "" : value;
+    }
+
+    private long getCursorLong(Cursor cursor, int index) {
+        if (index < 0 || cursor.isNull(index)) {
+            return 0L;
+        }
+        return cursor.getLong(index);
+    }
 }
