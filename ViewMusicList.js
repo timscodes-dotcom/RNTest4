@@ -31,6 +31,10 @@ class ViewMusicList extends Component {
         this.state = {
             selectAll: true,
             list: [],
+            playingItem: {
+                item: null,
+                err: false,
+            }
         };
 
         for (let i=0; i<props.info.list.length; i++) {
@@ -40,6 +44,28 @@ class ViewMusicList extends Component {
         }
         for (let i=0; i<this.state.list.length; i++) {
             this.state.list[i].selected = true;
+        }
+    }
+
+    componentDidMount() {
+        this.listListener = DeviceEventEmitter.addListener('cmd', (e) => {
+            if (e.cmd === 'playComplete') {
+                this.setState({
+                    playingItem: {
+                        item: null,
+                        err: false,
+                    }
+                })
+            }
+        });
+    }
+
+    componentWillUnmount() {
+        if (this.listListener) {
+            this.listListener.remove();
+        }
+        if (this.played === true) {
+            global.stopPlay();
         }
     }
 
@@ -100,6 +126,9 @@ class ViewMusicList extends Component {
                                             return;
                                         }
                                         global.updatePlayList(selectedList);
+                                        if (this.props.onCloseFunc) {
+                                            this.props.onCloseFunc();
+                                        }
                                     }}
                                 >
                                 <Text style={{color:'black', fontSize: ScreenUtil.scaleHeight(16)}}>播放</Text>
@@ -113,6 +142,9 @@ class ViewMusicList extends Component {
                                             return;
                                         }
                                         global.appendPlayList(selectedList);
+                                        if (this.props.onCloseFunc) {
+                                            this.props.onCloseFunc();
+                                        }
                                     }}
                                 >
                                 <Text style={{color:'black', fontSize: ScreenUtil.scaleHeight(16)}}>加入播放列表</Text>
@@ -123,7 +155,7 @@ class ViewMusicList extends Component {
 
                 <View style={{height:ScreenUtil.scaleHeight(5)}} />
 
-                <View style={{width:'100%', height:ScreenUtil.flexHeight- ScreenUtil.scaleHeight(150), backgroundColor:'lightblue', flexDirection:'row', justifyContent:'center', alignItems:'center'}}>
+                <View style={{width:'100%', height:ScreenUtil.flexHeight- ScreenUtil.scaleHeight(130), backgroundColor:'lightblue', flexDirection:'row', justifyContent:'center', alignItems:'center'}}>
                     <FlatList
                         style={{width:'100%'}}
                         data={this.state.list}
@@ -191,16 +223,21 @@ class ViewMusicList extends Component {
                         />
                         </View>
                     </View>
-                    <TouchableOpacity style={{height:'100%', flexDirection:'column', position:'absolute', top:0, left:0, paddingTop: ScreenUtil.scaleHeight(15)}}
+                    <TouchableOpacity style={{height:'100%', width:'75%', flexDirection:'column', position:'absolute', top:0, left:0, paddingTop: ScreenUtil.scaleHeight(15)}}
                        onPress={async () => {
                             try {
-                                if (Platform.OS === 'android') {
-                                    const granted = await global.requestAndroidAudioPermission();
-                                    if (!granted) {
-                                        Alert.alert('Permission', '未获得读取音频权限');
-                                        return;
-                                    }
+                                global.hasPermission = await global.requestAndroidAudioPermission();
+                                if (!global.hasPermission) {
+                                    Alert.alert('Permission', '未获得读取音频权限');
+                                    return;
                                 }
+/*
+                                if (this.playingItem && this.playingItem.DATA === item.DATA) {
+                                    await global.stopPlay();
+                                    this.playingItem = null;
+                                    return;
+                                }
+                                
 
                                 if (global.playing == true) {
                                     NativeModules.AudioModule.stop();
@@ -215,6 +252,30 @@ class ViewMusicList extends Component {
                                 }).catch((error) => {
                                     console.log('Failed to start music playback: ' + (error?.message || JSON.stringify(error)));
                                 });
+                                */
+                               //console.log(global.playingItem);
+                               //console.log('### ');
+                                this.playingItem = item;
+                                const result = await global.playItem(item);
+                                if (result == false) {
+                                    Alert.alert('Error', 'Failed to play music!');
+                                    item.err = true;
+                                    this.setState({
+                                        playingItem: {
+                                            item: item,
+                                            err: true,
+                                        }
+                                    })
+                                }
+                                else {
+                                    this.played = true;
+                                    this.setState({
+                                        playingItem: {
+                                            item: item,
+                                            err: false,
+                                        }
+                                    })
+                                }
                             } catch (error) {
                                 Alert.alert('Error', 'Failed to play music: ' + (error?.message || JSON.stringify(error)));
                             }
@@ -224,7 +285,9 @@ class ViewMusicList extends Component {
                         <Text
                             numberOfLines={1}
                             ellipsizeMode="tail"
-                            style={{color:'black', fontSize: ScreenUtil.scaleHeight(16), width:'60%', textAlign:'left'}}
+                            style={{
+                                color: this.getTitleColor(item), 
+                                fontSize: ScreenUtil.scaleHeight(16), width:'100%', textAlign:'left'}}
                         >
                             {item.TITLE}
                         </Text>
@@ -233,7 +296,7 @@ class ViewMusicList extends Component {
                         <Text
                             numberOfLines={1}
                             ellipsizeMode="tail"
-                            style={{color:'gray', fontSize: ScreenUtil.scaleHeight(12), width:'60%', textAlign:'left'}}
+                            style={{color:'gray', fontSize: ScreenUtil.scaleHeight(12), width:'100%', textAlign:'left'}}
                         >
                             Artist: {item.ARTIST}, Album: {item.ALBUM}, Duration: {global.formatDuration(item.DURATION)}
                         </Text>
@@ -242,6 +305,21 @@ class ViewMusicList extends Component {
                 </View>
             </View>
         );
+    }
+
+    getTitleColor(item) {
+        if (item.err === true) {
+            return 'red';
+        }
+        if (this.state.playingItem.item && this.state.playingItem.item.DATA === item.DATA) {
+            if (this.state.playingItem.err === true) {
+                return 'red';
+            }
+            else {
+                return 'blue';
+            }
+        }
+        return 'black';
     }
 }
 

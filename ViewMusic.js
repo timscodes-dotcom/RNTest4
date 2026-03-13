@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { View, TouchableOpacity, Text, NativeModules, Platform, FlatList, RefreshControl, ScrollView, TextInput, Switch, 
+import { View, TouchableOpacity, Text, NativeModules, Platform, FlatList, RefreshControl, ScrollView, TextInput, Switch, Image,
     DeviceEventEmitter, Keyboard, Alert, findNodeHandle } from 'react-native';
 import PropTypes from 'prop-types';
 
@@ -16,6 +16,17 @@ import CheckBox from '@react-native-community/checkbox';
 import ViewMusicList from './ViewMusicList';
 import ViewPlayList from './ViewPlayList';
 
+import SvgList from './svg_component/List';
+import SvgListMusic from './svg_component/ListMusic';
+import SvgMusicPlay from './svg_component/MusicPlay';
+import SvgMusicPause from './svg_component/MusicPause';
+import SvgMusicStop from './svg_component/MusicStop';
+import SvgMusicNext from './svg_component/MusicNext';
+import SvgMusicPrev from './svg_component/MusicPrev';
+import SvgPlayRandom from './svg_component/PlayRandom';
+import SvgPlayRepeat from './svg_component/PlayRepeat';
+import SvgPlayRepeatOne from './svg_component/PlayRepeatOne';
+
 class ViewMusic extends Component {
     
     static propTypes = {
@@ -30,6 +41,11 @@ class ViewMusic extends Component {
     constructor(props) {
         super(props);
 
+        this.repeatModeList = ['shuffle', 'repeatAll', 'repeatOne'];
+
+        const repeatModeStr = global.getClientBufferStr('repeatMode') || '0';
+        const repeatMode = parseInt(repeatModeStr, 10) || 0;
+
         this.state = {
             folderList: [],
             musicList: {
@@ -39,9 +55,34 @@ class ViewMusic extends Component {
             },
             playList: {
                 show: false,
-                info: null,
             },
+
+            playStatus: 'stop', // play, pause, stop
+
+            repeatMode: repeatMode, // 0: shuffle, 1: repeatAll, 2: repeatOne
+
+            currTITLE: '',
+            currDURATION: '00:00/00:00',
         };
+
+        this.playStartTime = 0;
+
+        const playListStr = global.getClientBufferStr('playList');
+        if (playListStr) {
+            try {
+                const playList = JSON.parse(playListStr);
+                for (let i = playList.list.length - 1; i >= 0; i--) {
+                    const item = playList.list[i];
+                    item.err = false;
+                }
+                global.playList = playList;
+                global.errFileCount = 0;
+                this.state.currTITLE = playList.list[playList.currentIndex]?.TITLE || '';
+                this.state.currDURATION = global.formatDuration(playList.list[playList.currentIndex]?.DURATION) || '00:00';
+            } catch (error) {
+                console.log('parse playList error: ' + (error?.message || JSON.stringify(error)));
+            }
+        }
     }
 
     readMusicList(list) {
@@ -90,24 +131,94 @@ class ViewMusic extends Component {
         } catch (error) {
             console.log('get music file list error: ' + (error?.message || JSON.stringify(error)));
         }
+
+        this.listenCmd = DeviceEventEmitter.addListener('cmd', e => {
+            if (e.cmd == 'playComplete') {
+                console.log('play complete: ' + JSON.stringify(e.msg));
+                if (this.state.playStatus == 'play') {
+                    this.playNext();
+                }
+            }
+            else if (e.cmd == 'playStop') {
+                console.log('play stop: ' + JSON.stringify(e.msg));
+                this.setState({playStatus: 'stop'});
+            }
+            else if (e.cmd == 'playProgress') {
+                //console.log('play progress: ' + JSON.stringify(e.msg));
+                const current = e.msg.position;
+                const duration = e.msg.duration;
+                this.setState({currDURATION: global.formatDuration(current) + '/' + global.formatDuration(duration)});
+            }
+            else if (e.cmd == 'playErr') {
+                this.playNext();
+            }
+        });
+    }
+
+    async playNext(action) { // action: start, prev
+        if (global.playList.list.length == 0) {
+            this.setState({playStatus: 'stop'});
+            return false;
+        }
+        if (global.playList.list.length <= global.errFileCount) {
+            this.setState({playStatus: 'stop'});
+            return false;
+        }
+
+        global.playingItem.item = null;
+
+        let nextIndex = 0;
+        if (this.state.repeatMode == 0) {
+            // shuffle
+            nextIndex = Math.floor(Math.random() * global.playList.list.length);
+        }
+        else if (this.state.repeatMode == 1) {
+            // repeat all
+            if (action == 'start') {
+                nextIndex = global.playList.currentIndex;
+            }
+            else if (action == 'prev') {
+                nextIndex = global.playList.currentIndex - 1;
+                if (nextIndex < 0) {
+                    nextIndex = global.playList.list.length - 1;
+                }
+            }
+            else {
+                nextIndex = global.playList.currentIndex + 1;
+                if (nextIndex >= global.playList.list.length) {
+                    nextIndex = 0;
+                }
+            }
+        }
+        else if (this.state.repeatMode == 2) {
+            // repeat one
+            nextIndex = global.playList.currentIndex;
+        }
+
+        const item = global.playList.list[nextIndex];
+        this.setState({currTITLE: item.TITLE, currDURATION: global.formatDuration(item.DURATION)});
+        global.playList.currentIndex = nextIndex;
+        global.saveClientBuffer('playList', JSON.stringify(global.playList));
+
+        if (item.err === true) {
+            DeviceEventEmitter.emit('cmd', {cmd:'playErr', msg:{}});
+        }
+        else {
+            const result = await global.playItem(item);
+            if (result == false) {
+                item.err = true;
+                global.errFileCount = (global.errFileCount || 0) + 1;
+                DeviceEventEmitter.emit('cmd', {cmd:'playErr', msg:{}});
+            }
+        }
+        
+        return true;
     }
 
     componentWillUnmount() {
-    }
-
-    formatDuration(durationMs) {
-        const totalSeconds = Math.max(0, Math.floor((Number(durationMs) || 0) / 1000));
-        const hours = Math.floor(totalSeconds / 3600);
-        const minutes = Math.floor((totalSeconds % 3600) / 60);
-        const seconds = totalSeconds % 60;
-
-        const mm = String(minutes).padStart(2, '0');
-        const ss = String(seconds).padStart(2, '0');
-
-        if (hours > 0) {
-            return `${hours}:${mm}:${ss}`;
+        if (this.listenCmd) {
+            this.listenCmd.remove();
         }
-        return `${mm}:${ss}`;
     }
 
     render() {
@@ -116,7 +227,10 @@ class ViewMusic extends Component {
                 <View style={{height:ScreenUtil.scaleHeight(20)}} />
                 <View style={{width:'100%', flexDirection:'row', justifyContent:'center', alignItems:'center'}}>
                     <View style={{width:'90%', height:ScreenUtil.scaleHeight(40), flexDirection:'row',}}>
-                        <View style={{width:ScreenUtil.scaleHeight(40), height:ScreenUtil.scaleHeight(40), justifyContent:'center', alignItems:'center', backgroundColor:'red',}}>
+                        <View style={{width:ScreenUtil.scaleHeight(40), height:ScreenUtil.scaleHeight(40), justifyContent:'center', alignItems:'center',}}>
+                            <Image resizeMode='stretch'  style={{height:ScreenUtil.scaleHeight(30), width:ScreenUtil.scaleHeight(30),}} 
+                                source={require('./assets/playing.gif')}
+                                />
                         </View>
                         <View style={{width:ScreenUtil.scaleWidth(10)}} />
                         <View style={{height:ScreenUtil.scaleHeight(40), backgroundColor:'lightgray', borderRadius: ScreenUtil.scaleHeight(10), justifyContent:'center', alignItems:'center'}}>
@@ -129,7 +243,7 @@ class ViewMusic extends Component {
                     </View>
                 </View>
                 <View style={{height:ScreenUtil.scaleHeight(15)}} />
-                <View style={{width:'100%', height:ScreenUtil.flexHeight- ScreenUtil.scaleHeight(150), backgroundColor:'lightblue', flexDirection:'row', justifyContent:'center', alignItems:'center'}}>
+                <View style={{width:'100%', height:ScreenUtil.flexHeight- ScreenUtil.scaleHeight(190), backgroundColor:'lightblue', flexDirection:'row', justifyContent:'center', alignItems:'center'}}>
                     <FlatList
                         style={{width:'100%'}}
                         data={this.state.folderList}
@@ -159,17 +273,99 @@ class ViewMusic extends Component {
                         }
                     />
                 </View>
-                <View style={{height:ScreenUtil.scaleHeight(5)}} />
-                <TouchableOpacity style={{width:'100%', flexDirection:'row', justifyContent:'center', alignItems:'center'}}
-                    onPress={() => {
-                        this.state.playList.show = true;
-                        this.setState({playList: this.state.playList});
-                    }}
+                <View style={{height:ScreenUtil.scaleHeight(10)}} />
+                <View style={{width:'100%', flexDirection:'row', justifyContent:'center', alignItems:'center'}}
+                    
                 >
-                    <View style={{width:'90%', height:ScreenUtil.scaleHeight(40), backgroundColor:'lightgray', borderRadius: ScreenUtil.scaleHeight(20), justifyContent:'center', alignItems:'center'}}>
-                        <Text style={{color:'black', fontSize: ScreenUtil.scaleHeight(16)}}>Music List</Text>
+                    <View style={{width:'90%', height:ScreenUtil.scaleHeight(80), backgroundColor:'lightgray', borderRadius: ScreenUtil.scaleHeight(20), flexDirection:'column',}}>
+                        <View style = {{width:'100%', height:ScreenUtil.scaleHeight(40), flexDirection:'row',}}>
+                            <View style={{height:'100%', width:ScreenUtil.scaleWidth(180), backgroundColor:'transparent', flexDirection:'row',}}>
+                                <View style={{height:'100%', flexDirection:'column', justifyContent:'center', alignItems:'center', paddingLeft: ScreenUtil.scaleWidth(20)}}>
+                                    <Text
+                                        numberOfLines={1}
+                                        ellipsizeMode="tail"
+                                        style={{color:'black', fontSize: ScreenUtil.scaleHeight(16), textAlign:'left'}}
+                                    >
+                                        {this.state.currTITLE}
+                                    </Text>
+                                </View>
+                            </View>
+                            <View style={{height:'100%', width:'100%', flexDirection:'row-reverse', position:'absolute', top:0, left:0, backgroundColor:'transparent',}}>
+                                <View style={{width:ScreenUtil.scaleWidth(20),}} />
+                                <View style={{height:'100%', flexDirection:'column', justifyContent:'center', alignItems:'center', }}>
+                                <Text
+                                        style={{color:'black', fontSize: ScreenUtil.scaleHeight(16), textAlign:'left'}}
+                                    >
+                                        {this.state.currDURATION}
+                                    </Text>
+                                </View>
+                            </View>
+                        </View>
+                        <View style = {{width:'100%', height:ScreenUtil.scaleHeight(40), flexDirection:'row',justifyContent:'center', alignItems:'center'}}>
+                            
+                            <TouchableOpacity style={{width:ScreenUtil.scaleHeight(40), height:ScreenUtil.scaleHeight(40), flexDirection:'row', justifyContent:'center', alignItems:'center', backgroundColor:'transparent',}}
+                                    onPress={() => {
+                                            const nextMode = (this.state.repeatMode + 1) % this.repeatModeList.length;
+                                            global.saveClientBuffer('repeatMode', nextMode.toString());
+                                            this.setState({repeatMode: nextMode});
+                                        }}>
+                                <View style={{height:'100%', flexDirection:'column', justifyContent:'center', alignItems:'center',}} >
+                                    {this.state.repeatMode == 0 && <SvgPlayRandom stroke={ScreenUtil.getTextColor('keyColor')} width={ScreenUtil.scaleHeight(40)*0.6} height={ScreenUtil.scaleHeight(40)*0.6} />}
+                                    {this.state.repeatMode == 1 && <SvgPlayRepeat stroke={ScreenUtil.getTextColor('keyColor')} width={ScreenUtil.scaleHeight(40)*0.6} height={ScreenUtil.scaleHeight(40)*0.6} />}
+                                    {this.state.repeatMode == 2 && <SvgPlayRepeatOne stroke={ScreenUtil.getTextColor('keyColor')} width={ScreenUtil.scaleHeight(40)*0.6} height={ScreenUtil.scaleHeight(40)*0.6} />}
+                                </View>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity style={{width:ScreenUtil.scaleHeight(40), height:ScreenUtil.scaleHeight(40), flexDirection:'row', justifyContent:'center', alignItems:'center', backgroundColor:'transparent',}}
+                                    onPress={() => {
+                                        this.playNext('prev');
+                                        }}>
+                                <View style={{height:'100%', flexDirection:'column', justifyContent:'center', alignItems:'center',}} >
+                                    <SvgMusicPrev stroke={ScreenUtil.getTextColor('keyColor')} width={ScreenUtil.scaleHeight(40)*0.6} height={ScreenUtil.scaleHeight(40)*0.6} />
+                                </View>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity style={{width:ScreenUtil.scaleHeight(40), height:ScreenUtil.scaleHeight(40), flexDirection:'row', justifyContent:'center', alignItems:'center', backgroundColor:'transparent',}}
+                                    onPress={() => {
+                                        if (this.state.playStatus == 'play') {
+                                            global.pausePlay();
+                                            this.setState({playStatus: 'pause'});
+                                        } else if (this.state.playStatus == 'pause') {
+                                            global.resumePlay();
+                                            this.setState({playStatus: 'play'});
+                                        }
+                                        else {
+                                            this.playNext('start');
+                                            this.setState({playStatus: 'play'});
+                                        }
+                                        }}>
+                                <View style={{height:'100%', flexDirection:'column', justifyContent:'center', alignItems:'center',}} >
+                                    {this.state.playStatus == 'play' && <SvgMusicPause stroke={ScreenUtil.getTextColor('keyColor')} width={ScreenUtil.scaleHeight(40)*0.6} height={ScreenUtil.scaleHeight(40)*0.6} />}
+                                    {this.state.playStatus != 'play' && <SvgMusicPlay stroke={ScreenUtil.getTextColor('keyColor')} width={ScreenUtil.scaleHeight(40)*0.6} height={ScreenUtil.scaleHeight(40)*0.6} />}
+                                </View>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity style={{width:ScreenUtil.scaleHeight(40), height:ScreenUtil.scaleHeight(40), flexDirection:'row', justifyContent:'center', alignItems:'center', backgroundColor:'transparent',}}
+                                    onPress={() => {
+                                        this.playNext('next');
+                                        }}>
+                                <View style={{height:'100%', flexDirection:'column', justifyContent:'center', alignItems:'center',}} >
+                                    <SvgMusicNext stroke={ScreenUtil.getTextColor('keyColor')} width={ScreenUtil.scaleHeight(40)*0.6} height={ScreenUtil.scaleHeight(40)*0.6} />
+                                </View>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity style={{width:ScreenUtil.scaleHeight(40), height:ScreenUtil.scaleHeight(40), flexDirection:'row', justifyContent:'center', alignItems:'center', backgroundColor:'transparent',}}
+                                    onPress={() => {
+                                            this.state.playList.show = true;
+                                            this.setState({playList: this.state.playList});
+                                        }}>
+                                <View style={{height:'100%', flexDirection:'column', justifyContent:'center', alignItems:'center',}} >
+                                    <SvgListMusic stroke={ScreenUtil.getTextColor('keyColor')} width={ScreenUtil.scaleHeight(40)*0.6} height={ScreenUtil.scaleHeight(40)*0.6} />
+                                </View>
+                            </TouchableOpacity>
+                        </View>
                     </View>
-                </TouchableOpacity>
+                </View>
                 {this.state.musicList.show === true && <ViewMusicList info={this.state.musicList.info} onCloseFunc={() => {
                     this.state.musicList.show = false;
                     this.setState({musicList: this.state.musicList});

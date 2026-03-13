@@ -28,11 +28,16 @@ var global = {
         return (this.inited.nativeModules==true && this.inited.data==true);
     },
 
-    playing: false,
+    hasPermission: false,
+    playingItem: {
+        status: 'stop', // play, pause, stop
+        item: null,
+    },
     playList: {
         list: [],
         currentIndex: 0,
         playMode: 'order', // order, single, shuffle
+        errFileCount: 0,
     },
 
     audioEvents: new NativeEventEmitter(NativeModules.AudioModule),
@@ -230,11 +235,13 @@ var global = {
 
         _tmp = this.getClientBufferStr('WANIp') || JSON.stringify({ip:'', countryCode:'', refreshTimeStamp:0}); //JP
         this.WANIp = JSON.parse(_tmp);
+        /*
         let self = this;
         self.getWANIp();
         setInterval(() => {
             self.getWANIp();
         }, 30000);
+        */
 
         this.deviceID = this.getClientBufferStr('deviceID') || '';
         if (this.deviceID === '' || this.deviceID.length!=8) {
@@ -258,8 +265,19 @@ var global = {
         // 监听事件
         this.audioEvents.addListener('onPlay', e => console.log('Play:', e.url));
         this.audioEvents.addListener('onPause', e => console.log('Paused'));
-        this.audioEvents.addListener('onStop', e => console.log('Stopped'));
-        this.audioEvents.addListener('onComplete', e => console.log('onComplete'));
+        this.audioEvents.addListener('onStop', e => {
+            console.log('Stopped')
+            DeviceEventEmitter.emit('cmd', {cmd:'playStop', msg:e});
+        });
+        this.audioEvents.addListener('onComplete', e => {
+            DeviceEventEmitter.emit('cmd', {cmd:'playComplete', msg:e});
+            console.log('onComplete')
+        });
+        //onProgress
+        this.audioEvents.addListener('onProgress', e => {
+            //console.log('Progress:', e);
+            DeviceEventEmitter.emit('cmd', {cmd:'playProgress', msg:e});
+        });
 
         /*
         // 调用播放
@@ -315,7 +333,7 @@ var global = {
         }
 		else if (Platform.OS == 'android') {
             this.listener1 = DeviceEventEmitter.addListener('cmd', (emitData) => {
-                this.consoleLog('android DeviceEventEmitter: '+JSON.stringify(emitData))
+                //this.consoleLog('android DeviceEventEmitter: '+JSON.stringify(emitData))
 				if (emitData.cmd == 'native' && emitData.msg !== "testIOSEvent1" && emitData.msg !== "testCallbackFunc" && emitData.msg !== "stringFromJNI: onTestMessage") {
 					this.handleNativeMsg(emitData.msg);
 				}
@@ -345,6 +363,10 @@ var global = {
 
     async requestAndroidAudioPermission() {
         if (Platform.OS !== 'android') {
+            return true;
+        }
+
+        if (this.hasPermission) {
             return true;
         }
 
@@ -381,8 +403,8 @@ var global = {
             return [];
         }
 
-        const granted = await this.requestAndroidAudioPermission();
-        if (!granted) {
+        this.hasPermission = await this.requestAndroidAudioPermission();
+        if (!this.hasPermission) {
             throw new Error('Audio permission denied');
         }
 
@@ -479,6 +501,9 @@ var global = {
     updatePlayList(newPlaylist) {
         this.playList.list = newPlaylist;
         this.playList.currentIndex = 0;
+        this.playList.errFileCount = 0;
+
+        this.saveClientBuffer('playList', JSON.stringify(this.playList));
     },
 
     appendPlayList(list) {
@@ -488,7 +513,80 @@ var global = {
                 this.playList.list.push(item);
             }
         }
-    }
+        this.saveClientBuffer('playList', JSON.stringify(this.playList));
+    },
+
+    async playItem(item) {
+        try {
+            if (this.playingItem.item?.DATA === item.DATA) {
+                if (this.playingItem.status === 'play') {
+                    await NativeModules.AudioModule.pause();
+                    this.playingItem.status = 'paused';
+                } else if (this.playingItem.status === 'paused') {
+                    await NativeModules.AudioModule.resume();
+                    this.playingItem.status = 'play';
+                }
+                else {
+                    if (item.err === true) {
+                        return false;
+                    }
+                    else {
+                        const result = await NativeModules.AudioModule.play(item.DATA);
+                        if (result === true) {
+                            this.playingItem.status = 'play';
+                        } else {
+                            item.err = true;
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            }
+            else {
+                if (this.playingItem.item) {
+                    await this.stopPlay();
+                }
+                this.playingItem.item = item;
+                if (item.err === true) {
+                    return false;
+                }
+                const result = await NativeModules.AudioModule.play(item.DATA);
+                if (result === true) {
+                    this.playingItem.status = 'play';
+                } else {
+                    item.err = true;
+                    return false;
+                }
+            }
+            
+            
+        } catch (error) {
+            console.log('Failed to start music playback: ' + (error?.message || JSON.stringify(error)));
+            return false;
+        }
+        return true
+    },
+
+    async stopPlay() {
+        if (this.playingItem.status !== 'stop') {
+            await NativeModules.AudioModule.stop();
+            this.playingItem.status = 'stop';
+        }
+    },
+
+    async pausePlay() {
+        if (this.playingItem.status === 'play') {
+            await NativeModules.AudioModule.pause();
+            this.playingItem.status = 'paused';
+        }
+    },
+
+    async resumePlay() {
+        if (this.playingItem.status === 'paused') {
+            await NativeModules.AudioModule.resume();
+            this.playingItem.status = 'play';
+        }
+    },
 
 };
 

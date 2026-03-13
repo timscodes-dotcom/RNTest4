@@ -124,7 +124,7 @@ class ViewPlayList extends Component {
 
                 <View style={{height:ScreenUtil.scaleHeight(5)}} />
 
-                <View style={{width:'100%', height:ScreenUtil.flexHeight- ScreenUtil.scaleHeight(150), backgroundColor:'lightblue', flexDirection:'row', justifyContent:'center', alignItems:'center'}}>
+                <View style={{width:'100%', height:ScreenUtil.flexHeight- ScreenUtil.scaleHeight(130), backgroundColor:'lightblue', flexDirection:'row', justifyContent:'center', alignItems:'center'}}>
                     <FlatList
                         style={{width:'100%'}}
                         data={this.state.list}
@@ -233,7 +233,7 @@ class ViewPlayList extends Component {
                         <Text
                             numberOfLines={1}
                             ellipsizeMode="tail"
-                            style={{color:'black', fontSize: ScreenUtil.scaleHeight(16), width:'60%', textAlign:'left'}}
+                            style={{color:this.getTitleColor(item), fontSize: ScreenUtil.scaleHeight(16), width:'60%', textAlign:'left'}}
                         >
                             {item.TITLE}
                         </Text>
@@ -251,6 +251,18 @@ class ViewPlayList extends Component {
                 </View>
             </View>
         );
+    }
+
+    getTitleColor(item) {
+        if (item.err === true) {
+            return 'red';
+        }
+
+        const idx = global.playList.currentIndex;
+        if (idx >= 0 && idx < global.playList.list.length && global.playList.list[idx].DATA === item.DATA) {
+            return 'blue';
+        }
+        return 'black';
     }
 }
 

@@ -4,14 +4,127 @@ import com.facebook.react.bridge.*
 import com.facebook.react.modules.core.DeviceEventManagerModule
 import android.media.MediaPlayer
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
+import android.media.session.MediaSession
+import android.media.session.PlaybackState
 import java.io.File
 
 class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
 
     private var player: MediaPlayer? = null
+    private var mediaSession: MediaSession? = null
+    private val progressHandler = Handler(Looper.getMainLooper())
+    private val progressIntervalMs = 1000L
+    private val progressRunnable = object : Runnable {
+        override fun run() {
+            val currentPlayer = player ?: return
+            try {
+                if (currentPlayer.isPlaying) {
+                    val params = Arguments.createMap().apply {
+                        putDouble("position", currentPlayer.currentPosition.toDouble())
+                        putDouble("duration", currentPlayer.duration.toDouble())
+                    }
+                    sendEvent("onProgress", params)
+                    progressHandler.postDelayed(this, progressIntervalMs)
+                }
+            } catch (_: Exception) {
+                stopProgressUpdates()
+            }
+        }
+    }
 
     override fun getName(): String {
         return "AudioModule"
+    }
+
+    private fun ensureMediaSession() {
+        if (mediaSession != null) return
+
+        val session = MediaSession(reactApplicationContext, "RNAudioModule")
+        session.setFlags(MediaSession.FLAG_HANDLES_MEDIA_BUTTONS or MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS)
+        session.setCallback(object : MediaSession.Callback() {
+            override fun onPlay() {
+                internalResume()
+                sendEvent("onRemotePlay", null)
+            }
+
+            override fun onPause() {
+                internalPause()
+                sendEvent("onRemotePause", null)
+            }
+
+            override fun onStop() {
+                internalStop()
+                sendEvent("onRemoteStop", null)
+            }
+
+            override fun onSkipToNext() {
+                sendEvent("onRemoteNext", null)
+            }
+
+            override fun onSkipToPrevious() {
+                sendEvent("onRemotePrevious", null)
+            }
+
+            override fun onSeekTo(pos: Long) {
+                player?.seekTo(pos.toInt())
+                sendEvent("onRemoteSeek", Arguments.createMap().apply {
+                    putDouble("position", pos.toDouble())
+                })
+            }
+        })
+        session.isActive = true
+        mediaSession = session
+        updatePlaybackState(PlaybackState.STATE_NONE)
+    }
+
+    private fun updatePlaybackState(state: Int) {
+        val actions = PlaybackState.ACTION_PLAY or
+                PlaybackState.ACTION_PAUSE or
+                PlaybackState.ACTION_STOP or
+                PlaybackState.ACTION_SEEK_TO or
+                PlaybackState.ACTION_SKIP_TO_NEXT or
+                PlaybackState.ACTION_SKIP_TO_PREVIOUS or
+                PlaybackState.ACTION_PLAY_PAUSE
+
+        val position = try {
+            player?.currentPosition?.toLong() ?: 0L
+        } catch (_: Exception) {
+            0L
+        }
+
+        mediaSession?.setPlaybackState(
+            PlaybackState.Builder()
+                .setActions(actions)
+                .setState(state, position, 1.0f)
+                .build()
+        )
+    }
+
+    private fun internalPause() {
+        player?.pause()
+        stopProgressUpdates()
+        updatePlaybackState(PlaybackState.STATE_PAUSED)
+        sendEvent("onPause", null)
+    }
+
+    private fun internalResume() {
+        player?.start()
+        startProgressUpdates()
+        updatePlaybackState(PlaybackState.STATE_PLAYING)
+        sendEvent("onResume", null)
+    }
+
+    private fun internalStop() {
+        try {
+            player?.stop()
+            player?.reset()
+        } catch (_: Exception) {
+        }
+        stopProgressUpdates()
+        updatePlaybackState(PlaybackState.STATE_STOPPED)
+        sendEvent("onStop", null)
     }
 
     @ReactMethod
@@ -19,6 +132,7 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
         if (player == null) {
             player = MediaPlayer()
         }
+        ensureMediaSession()
     }
 
     @ReactMethod
@@ -44,6 +158,8 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
 
             currentPlayer.reset()
             currentPlayer.setOnErrorListener { _, what, extra ->
+                stopProgressUpdates()
+                updatePlaybackState(PlaybackState.STATE_ERROR)
                 if (!settled) {
                     settled = true
                     promise.reject("E_PLAYBACK", "MediaPlayer error: what=$what, extra=$extra")
@@ -57,6 +173,8 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
             }
             currentPlayer.setOnPreparedListener {
                 it.start()
+                startProgressUpdates()
+                updatePlaybackState(PlaybackState.STATE_PLAYING)
                 sendEvent("onPlay", Arguments.createMap().apply { putString("url", url) })
                 if (!settled) {
                     settled = true
@@ -64,12 +182,16 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
                 }
             }
             currentPlayer.setOnCompletionListener {
+                stopProgressUpdates()
+                updatePlaybackState(PlaybackState.STATE_STOPPED)
                 sendEvent("onComplete", null)
             }
 
             currentPlayer.setDataSource(reactApplicationContext, uri)
             currentPlayer.prepareAsync()
         } catch (e: Exception) {
+            stopProgressUpdates()
+            updatePlaybackState(PlaybackState.STATE_ERROR)
             if (!settled) {
                 settled = true
                 promise.reject("E_PLAY_INIT", e.message ?: "play failed", e)
@@ -80,19 +202,30 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
 
     @ReactMethod
     fun pause(promise: Promise) {
-        player?.pause()
-        sendEvent("onPause", null)
+        internalPause()
         promise.resolve(true)
     }
 
     @ReactMethod
-    fun stop(promise: Promise) {
+    fun resume(promise: Promise) {
         try {
-            player?.stop()
-            player?.reset()
-        } catch (_: Exception) {
+            val currentPlayer = player
+            if (currentPlayer == null) {
+                promise.reject("E_NO_PLAYER", "Player is not initialized")
+                return
+            }
+
+            internalResume()
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("E_RESUME", e.message ?: "resume failed", e)
+            sendEvent("onError", Arguments.createMap().apply { putString("message", e.message ?: "resume failed") })
         }
-        sendEvent("onStop", null)
+    }
+
+    @ReactMethod
+    fun stop(promise: Promise) {
+        internalStop()
         promise.resolve(true)
     }
 
@@ -104,8 +237,21 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
 
     @ReactMethod
     fun release() {
+        stopProgressUpdates()
         player?.release()
         player = null
+        mediaSession?.isActive = false
+        mediaSession?.release()
+        mediaSession = null
+    }
+
+    private fun startProgressUpdates() {
+        progressHandler.removeCallbacks(progressRunnable)
+        progressHandler.post(progressRunnable)
+    }
+
+    private fun stopProgressUpdates() {
+        progressHandler.removeCallbacks(progressRunnable)
     }
 
     private fun sendEvent(eventName: String, params: WritableMap?) {
