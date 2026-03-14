@@ -12,6 +12,8 @@ import global from './Global';
 import MyBackHandler from './MyBackHandler';
 
 import CheckBox from '@react-native-community/checkbox';
+import SvgListAdd from './svg_component/ListAdd';
+import SvgClose from './svg_component/Close';
 
 class ViewMusicList extends Component {
     
@@ -34,7 +36,8 @@ class ViewMusicList extends Component {
             playingItem: {
                 item: null,
                 err: false,
-            }
+            },
+            showAddMenu: false,
         };
 
         for (let i=0; i<props.info.list.length; i++) {
@@ -102,52 +105,35 @@ class ViewMusicList extends Component {
                 <View style={{height:ScreenUtil.scaleHeight(15)}} />
 
                 <View style={{width:'100%', flexDirection:'row', justifyContent:'center', alignItems:'center'}}>
-                    <View style={{width:'90%', height:ScreenUtil.scaleHeight(40),  justifyContent:'center', alignItems:'center'}}>
+                    <View style={{width:'90%', height:ScreenUtil.scaleHeight(40), justifyContent:'center', alignItems:'center'}}>
                         <View style={{width:'100%', flexDirection:'row-reverse'}}>
-                            <CheckBox
-                                disabled={false}
-                                value={this.state.selectAll}
-                                onValueChange={(newValue) => {
-                                    const newList = [...this.state.list];
-                                    for (let i = 0; i < newList.length; i++) {
-                                        newList[i].selected = newValue;
-                                    }
-                                    this.setState({ list: newList, selectAll: newValue });
-                                }}
-                            />
-                            <Text style={{color:'black', fontSize: ScreenUtil.scaleHeight(16)}}>全选</Text>
+                            <View style={{height:'100%', flexDirection:'column', justifyContent:'center'}} >
+                                <CheckBox
+                                    tintColors={{ true: '#FF6900', false: '#d4d4d4' }} 
+                                    disabled={false}
+                                    value={this.state.selectAll}
+                                    onValueChange={(newValue) => {
+                                        const newList = [...this.state.list];
+                                        for (let i = 0; i < newList.length; i++) {
+                                            newList[i].selected = newValue;
+                                        }
+                                        this.setState({ list: newList, selectAll: newValue });
+                                    }}
+                                />
+                            </View>
+                            <View style={{height:'100%', flexDirection:'column', justifyContent:'center'}} >
+                                <Text style={{color:'black', fontSize: ScreenUtil.scaleHeight(16)}}>全选</Text>
+                            </View>
                         </View>
                         <View style={{width:'100%', height:'100%', flexDirection:'row', position:'absolute', top:0, left:0}}>
+                            
                             <TouchableOpacity style={{height:'100%', justifyContent:'center', alignItems:'center', backgroundColor:'lightgray', paddingLeft: ScreenUtil.scaleWidth(20), paddingRight: ScreenUtil.scaleWidth(20), borderRadius: ScreenUtil.scaleHeight(10)}}
                                     onPress={() => {
-                                        const selectedList = this.state.list.filter(item => item.selected);
-                                        if (selectedList.length === 0) {
-                                            Alert.alert('Info', '请至少选择一首歌曲');
-                                            return;
-                                        }
-                                        global.updatePlayList(selectedList);
-                                        if (this.props.onCloseFunc) {
-                                            this.props.onCloseFunc();
-                                        }
+                                        //console.log(global.groupList);
+                                        this.setState({showAddMenu: true});
                                     }}
                                 >
-                                <Text style={{color:'black', fontSize: ScreenUtil.scaleHeight(16)}}>播放</Text>
-                            </TouchableOpacity>
-                            <View style={{width:ScreenUtil.scaleWidth(10)}} />
-                            <TouchableOpacity style={{height:'100%', justifyContent:'center', alignItems:'center', backgroundColor:'lightgray', paddingLeft: ScreenUtil.scaleWidth(20), paddingRight: ScreenUtil.scaleWidth(20), borderRadius: ScreenUtil.scaleHeight(10)}}
-                                    onPress={() => {
-                                        const selectedList = this.state.list.filter(item => item.selected);
-                                        if (selectedList.length === 0) {
-                                            Alert.alert('Info', '请至少选择一首歌曲');
-                                            return;
-                                        }
-                                        global.appendPlayList(selectedList);
-                                        if (this.props.onCloseFunc) {
-                                            this.props.onCloseFunc();
-                                        }
-                                    }}
-                                >
-                                <Text style={{color:'black', fontSize: ScreenUtil.scaleHeight(16)}}>加入播放列表</Text>
+                                <SvgListAdd width={ScreenUtil.scaleHeight(20)} height={ScreenUtil.scaleHeight(20)} color={'black'} />
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -184,6 +170,96 @@ class ViewMusicList extends Component {
                             />
                         }
                     />
+                </View>
+
+                {this.state.showAddMenu === true && this.renderAddMenu()}
+            </View>
+        );
+    }
+
+    renderAddMenu() {
+        return (
+            <View style={{position:'absolute', top:0, left:0, width:'100%', height:'100%', backgroundColor:'rgba(0,0,0,0.5)', justifyContent:'center', alignItems:'center'}}
+                onPress={() => {
+                    this.setState({showAddMenu: false});
+                }}
+            >
+                <MyBackHandler hardwareBackPress={(e) => {
+                    this.setState({showAddMenu: false});
+                    return true;
+                }}/>
+                <View style={{width:'80%', backgroundColor:'white', borderRadius: ScreenUtil.scaleHeight(20), justifyContent:'center', alignItems:'center', flexDirection:'column', paddingTop: ScreenUtil.scaleHeight(15), paddingBottom: ScreenUtil.scaleHeight(15)}}>
+                    <View style={{width:'100%', height:ScreenUtil.scaleHeight(40), flexDirection:'row-reverse', paddingRight: ScreenUtil.scaleWidth(20)}}>
+                        <TouchableOpacity style={{width:ScreenUtil.scaleHeight(40), height:ScreenUtil.scaleHeight(40), justifyContent:'center', alignItems:'center', backgroundColor:'lightgray', borderRadius: ScreenUtil.scaleHeight(20)}}
+                            onPress={() => {
+                                this.setState({showAddMenu: false});
+                            }}
+                        >
+                            <SvgClose width={ScreenUtil.scaleHeight(20)} height={ScreenUtil.scaleHeight(20)} color={'black'} />
+                        </TouchableOpacity>
+                    </View>
+                    <TouchableOpacity style={{width:'100%', height:ScreenUtil.scaleHeight(50), borderRadius: ScreenUtil.scaleHeight(20), justifyContent:'center', alignItems:'center'}}
+                        onPress={() => {
+                            const selectedList = this.state.list.filter(item => item.selected);
+                            if (selectedList.length === 0) {
+                                Alert.alert('Info', '请至少选择一首歌曲');
+                                return;
+                            }
+                            global.updatePlayList(selectedList);
+                            if (this.props.onCloseFunc) {
+                                this.props.onCloseFunc();
+                            }
+                        }}
+                    >
+                        <Text style={{color:'black', fontSize: ScreenUtil.scaleHeight(16)}}>更新播放列表</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={{width:'100%', height:ScreenUtil.scaleHeight(50), borderRadius: ScreenUtil.scaleHeight(20), justifyContent:'center', alignItems:'center'}}
+                        onPress={() => {
+                            const selectedList = this.state.list.filter(item => item.selected);
+                            if (selectedList.length === 0) {
+                                Alert.alert('Info', '请至少选择一首歌曲');
+                                return;
+                            }
+                            global.appendPlayList(selectedList);
+                            if (this.props.onCloseFunc) {
+                                this.props.onCloseFunc();
+                            }
+                        }}
+                    >
+                        <Text style={{color:'black', fontSize: ScreenUtil.scaleHeight(16)}}>追加到播放列表</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={{width:'100%', height:ScreenUtil.scaleHeight(50), borderRadius: ScreenUtil.scaleHeight(20), justifyContent:'center', alignItems:'center'}}>
+                        <Text style={{color:'black', fontSize: ScreenUtil.scaleHeight(16)}}>添加到歌单</Text>
+                    </TouchableOpacity>
+                    {/* 新建歌单*/}
+                    <View style={{width:'100%', backgroundColor:'lightgray', flexDirection:'column', justifyContent:'center', alignItems:'center'}}>
+                        <View style= {{height: ScreenUtil.scaleHeight(10)}} />
+                        <Text style={{color:'black', fontSize: ScreenUtil.scaleHeight(16)}}>新建歌单</Text>
+                        <TextInput
+                            style={{height: ScreenUtil.scaleHeight(40), width: ScreenUtil.scaleWidth(200), backgroundColor:'white', borderRadius: ScreenUtil.scaleHeight(10), paddingLeft: ScreenUtil.scaleWidth(10), marginTop: ScreenUtil.scaleHeight(10)}}
+                            placeholder="请输入歌单名称"
+                            placeholderTextColor="gray"
+                            color="black"
+                            onChangeText={(text) => {
+                                this.newGroupName = text;
+                            }}
+                        />
+                        <TouchableOpacity style={{height:ScreenUtil.scaleHeight(40), backgroundColor:'lightblue', borderRadius: ScreenUtil.scaleHeight(10), justifyContent:'center', alignItems:'center', paddingLeft: ScreenUtil.scaleWidth(20), paddingRight: ScreenUtil.scaleWidth(20), marginTop: ScreenUtil.scaleHeight(10)}}
+                            onPress={() => {
+                                if (this.newGroupName == null || this.newGroupName.trim() == '') {
+                                    Alert.alert('歌单名称不能为空');
+                                    return;
+                                }
+                                const newGroup = {key: 'group_' + Date.now(), groupName: this.newGroupName || '新歌单', list: []};
+                                global.groupList.push(newGroup);
+                                global.saveClientBuffer('groupList', JSON.stringify(global.groupList));
+                                DeviceEventEmitter.emit('cmd', {cmd:'groupListUpdated',});
+                            }}
+                        >
+                            <Text style={{color:'black', fontSize: ScreenUtil.scaleHeight(16)}}>保存</Text>
+                        </TouchableOpacity> 
+                        <View style= {{height: ScreenUtil.scaleHeight(10)}} />
+                    </View>
                 </View>
             </View>
         );

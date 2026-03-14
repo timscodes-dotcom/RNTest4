@@ -26,6 +26,8 @@ import SvgMusicPrev from './svg_component/MusicPrev';
 import SvgPlayRandom from './svg_component/PlayRandom';
 import SvgPlayRepeat from './svg_component/PlayRepeat';
 import SvgPlayRepeatOne from './svg_component/PlayRepeatOne';
+import SvgListDelete from './svg_component/ListDelete';
+import SvgEdit from './svg_component/Edit';
 
 class ViewMusic extends Component {
     
@@ -48,6 +50,7 @@ class ViewMusic extends Component {
 
         this.state = {
             folderList: [],
+            groupList: global.groupList,
             musicList: {
                 show: false,
                 type: 'folder',
@@ -81,6 +84,20 @@ class ViewMusic extends Component {
                 this.state.currDURATION = global.formatDuration(playList.list[playList.currentIndex]?.DURATION) || '00:00';
             } catch (error) {
                 console.log('parse playList error: ' + (error?.message || JSON.stringify(error)));
+            }
+        }
+
+        const groupListStr = global.getClientBufferStr('groupList');
+        if (groupListStr) {
+            try {
+                this.state.groupList = JSON.parse(groupListStr);
+                for (let i = 0; i < this.state.groupList.length; i++) {
+                    const group = this.state.groupList[i];
+                    group.status = '';
+                }
+                global.groupList = this.state.groupList;
+            } catch (error) {
+                console.log('parse groupList error: ' + (error?.message || JSON.stringify(error)));
             }
         }
     }
@@ -119,7 +136,7 @@ class ViewMusic extends Component {
         try {
             const list = await global.getMusicFileList();
             console.log('music file list count: ' + list.length);
-            console.log('music file list: ' + JSON.stringify(list));
+            //console.log('music file list: ' + JSON.stringify(list));
             if (list.length == 0) {
                 const list1 = global.getTestList();
                 console.log('test list count: ' + list1.length);
@@ -151,6 +168,9 @@ class ViewMusic extends Component {
             }
             else if (e.cmd == 'playErr') {
                 this.playNext();
+            }
+            else if (e.cmd == 'groupListUpdated') {
+                this.setState({groupList: global.groupList});
             }
         });
     }
@@ -233,20 +253,34 @@ class ViewMusic extends Component {
                                 />
                         </View>
                         <View style={{width:ScreenUtil.scaleWidth(10)}} />
-                        <View style={{height:ScreenUtil.scaleHeight(40), backgroundColor:'lightgray', borderRadius: ScreenUtil.scaleHeight(10), justifyContent:'center', alignItems:'center'}}>
+                        <TouchableOpacity style={{height:ScreenUtil.scaleHeight(40), backgroundColor:this.state.musicList.type === 'folder' ? 'lightgray' : 'lightblue', 
+                                borderRadius: ScreenUtil.scaleHeight(10), justifyContent:'center', alignItems:'center'}}
+                                onPress={() => {
+                                    if (this.state.musicList.type !== 'group') {
+                                        this.state.musicList.type = 'group';
+                                        this.setState({musicList: this.state.musicList});
+                                    }
+                                }}>
                             <Text style={{color:'black', fontSize: ScreenUtil.scaleHeight(16), paddingLeft: ScreenUtil.scaleWidth(20), paddingRight: ScreenUtil.scaleWidth(20)}}>歌单</Text>
-                        </View>
+                        </TouchableOpacity>
                         <View style={{width:ScreenUtil.scaleWidth(10)}} />
-                        <View style={{height:ScreenUtil.scaleHeight(40), backgroundColor:'lightgray', borderRadius: ScreenUtil.scaleHeight(10), justifyContent:'center', alignItems:'center'}}>
+                        <TouchableOpacity style={{height:ScreenUtil.scaleHeight(40), backgroundColor:this.state.musicList.type === 'folder' ? 'lightblue' : 'lightgray', 
+                                borderRadius: ScreenUtil.scaleHeight(10), justifyContent:'center', alignItems:'center'}}
+                                onPress={() => {
+                                    if (this.state.musicList.type !== 'folder') {
+                                        this.state.musicList.type = 'folder';
+                                        this.setState({musicList: this.state.musicList});
+                                    }
+                                }}>
                             <Text style={{color:'black', fontSize: ScreenUtil.scaleHeight(16), paddingLeft: ScreenUtil.scaleWidth(20), paddingRight: ScreenUtil.scaleWidth(20)}}>文件夹</Text>
-                        </View>
+                        </TouchableOpacity>
                     </View>
                 </View>
                 <View style={{height:ScreenUtil.scaleHeight(15)}} />
                 <View style={{width:'100%', height:ScreenUtil.flexHeight- ScreenUtil.scaleHeight(190), backgroundColor:'lightblue', flexDirection:'row', justifyContent:'center', alignItems:'center'}}>
                     <FlatList
                         style={{width:'100%'}}
-                        data={this.state.folderList}
+                        data={this.state.musicList.type === 'folder' ? this.state.folderList : this.state.groupList}
                         renderItem={this._renderListItem} // 从数据源中挨个取出数据并渲染到列表中
                         //showsVerticalScrollIndicator={true} // 当此属性为true的时候，显示一个垂直方向的滚动条，默认为: true
                         showsHorizontalScrollIndicator={true} // 当此属性为true的时候，显示一个水平方向的滚动条，默认为: true
@@ -379,17 +413,160 @@ class ViewMusic extends Component {
     }
 
     _renderListItem = ({item, index}) => {
+        if (this.state.musicList.type === 'group') {
+            if (item.key === 'create') {
+                return (
+                    <View style={{width:'100%', height:ScreenUtil.scaleHeight(80), flexDirection:'row', justifyContent:'center', alignItems:'center'}}>
+                        <Text style={{color:'black', fontSize: ScreenUtil.scaleHeight(16)}}>{'新建: '}</Text>
+                        <View style={{width:ScreenUtil.scaleWidth(10)}} />
+                        <TextInput
+                            style={{height: ScreenUtil.scaleHeight(40), width: ScreenUtil.scaleWidth(200), backgroundColor:'white', borderRadius: ScreenUtil.scaleHeight(10), paddingLeft: ScreenUtil.scaleWidth(10)}}
+                            placeholder="输入歌单名称"
+                            placeholderTextColor="gray"
+                            color="black"
+                            onChangeText={(text) => {
+                                this.newGroupName = text;
+                            }}
+                        />
+                        <View style={{width:ScreenUtil.scaleWidth(10)}} />
+                        <TouchableOpacity style={{height:ScreenUtil.scaleHeight(40), backgroundColor:'lightgray', borderRadius: ScreenUtil.scaleHeight(10), justifyContent:'center', alignItems:'center', paddingLeft: ScreenUtil.scaleWidth(20), paddingRight: ScreenUtil.scaleWidth(20)}}
+                            onPress={() => {
+                                if (this.newGroupName == null || this.newGroupName.trim() == '') {
+                                    Alert.alert('歌单名称不能为空');
+                                    return;
+                                }
+                                const newGroup = {key: 'group_' + Date.now(), groupName: this.newGroupName || '新歌单', list: []};
+                                this.state.groupList.push(newGroup);
+                                this.setState({groupList: this.state.groupList});
+                                global.groupList = this.state.groupList;
+                                global.saveClientBuffer('groupList', JSON.stringify(this.state.groupList));
+                            }}
+                        >
+                            <Text style={{color:'black', fontSize: ScreenUtil.scaleHeight(16)}}>创建</Text>
+                        </TouchableOpacity>
+                    </View>
+                )
+            }
+
+            if (item.status === 'edit') {
+                return (
+                    <View style={{width:'100%', height:ScreenUtil.scaleHeight(80), flexDirection:'row', justifyContent:'center', alignItems:'center'}}>
+                        
+                        <TextInput
+                            style={{height: ScreenUtil.scaleHeight(40), width: ScreenUtil.scaleWidth(200), backgroundColor:'white', borderRadius: ScreenUtil.scaleHeight(10), paddingLeft: ScreenUtil.scaleWidth(10)}}
+                            placeholder="请输入歌单名称"
+                            placeholderTextColor="gray"
+                            color="black"
+                            value={item.groupName}
+                            onChangeText={(text) => {
+                                const groupList = [...this.state.groupList];
+                                const index = groupList.findIndex(g => g.key === item.key);
+                                if (index !== -1) {
+                                    groupList[index].groupName = text;
+                                    this.setState({groupList: groupList});
+                                }
+                            }}
+                        />
+                        <View style={{width:ScreenUtil.scaleWidth(10)}} />
+                        <TouchableOpacity style={{height:ScreenUtil.scaleHeight(40), backgroundColor:'lightgray', borderRadius: ScreenUtil.scaleHeight(10), justifyContent:'center', alignItems:'center', paddingLeft: ScreenUtil.scaleWidth(10), paddingRight: ScreenUtil.scaleWidth(10)}}
+                            onPress={() => {
+                                const groupList = [...this.state.groupList];
+                                const index = groupList.findIndex(g => g.key === item.key);
+                                if (index !== -1) {
+                                    groupList[index].status = '';
+                                    this.setState({groupList: groupList});
+                                    global.groupList = this.state.groupList;
+                                    global.saveClientBuffer('groupList', JSON.stringify(groupList));
+                                }
+                            }}
+                        >
+                            <Text style={{color:'black', fontSize: ScreenUtil.scaleHeight(16)}}>保存</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={{height:ScreenUtil.scaleHeight(40), backgroundColor:'lightgray', borderRadius: ScreenUtil.scaleHeight(10), justifyContent:'center', alignItems:'center', paddingLeft: ScreenUtil.scaleWidth(10), paddingRight: ScreenUtil.scaleWidth(10), marginLeft: ScreenUtil.scaleWidth(10)}}
+                            onPress={() => {
+                                const groupList = [...this.state.groupList];
+                                const index = groupList.findIndex(g => g.key === item.key);
+                                if (index !== -1) {
+                                    groupList[index].status = '';
+                                    groupList[index].groupName = item.groupNameTemp || groupList[index].groupName;
+                                    this.setState({groupList: groupList});
+                                }
+                            }}
+                        >
+                            <Text style={{color:'black', fontSize: ScreenUtil.scaleHeight(16)}}>取消</Text>
+                        </TouchableOpacity>
+                    </View>
+                )
+            }
+            return (
+                <View style={{width:'100%', flexDirection:'row', justifyContent:'center', alignItems:'center'}}>
+                    <View style={{width:'90%', height:ScreenUtil.scaleHeight(70), flexDirection:'row'}}>
+                        <View style={{width:'100%', height:'100%', flexDirection:'row-reverse'}}>
+                            <TouchableOpacity style={{height:'100%', width:ScreenUtil.scaleHeight(40), flexDirection:'row', justifyContent:'center', alignItems:'center',}}
+                                onPress={() => {
+                                    Alert.alert('删除歌单', '确定要删除歌单吗？', [
+                                        {text: '取消', style: 'cancel'},
+                                        {text: '确定', onPress: () => {
+                                            const groupList = this.state.groupList.filter(g => g.key !== item.key);
+                                            this.setState({groupList: groupList});
+                                            global.saveClientBuffer('groupList', JSON.stringify(groupList));
+                                            global.groupList = this.state.groupList;
+                                        }},
+                                    ]);
+                                }}>
+                                <View style={{height:'100%', flexDirection:'column', justifyContent:'center'}} >
+                                    <SvgListDelete stroke={ScreenUtil.getTextColor('keyColor')} width={ScreenUtil.scaleHeight(40)*0.6} height={ScreenUtil.scaleHeight(40)*0.6} />
+                                </View>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={{height:'100%', width:ScreenUtil.scaleHeight(40), flexDirection:'row', justifyContent:'center', alignItems:'center',}}
+                                onPress={() => {
+                                    item.status = 'edit';
+                                    item.groupNameTemp = item.groupName;
+                                    this.setState({groupList: this.state.groupList});
+                                }}>
+                                <View style={{height:'100%', flexDirection:'column', justifyContent:'center'}} >
+                                    <SvgEdit stroke={ScreenUtil.getTextColor('keyColor')} width={ScreenUtil.scaleHeight(40)*0.6} height={ScreenUtil.scaleHeight(40)*0.6} />
+                                </View>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={{height:'100%', width:ScreenUtil.scaleHeight(40), flexDirection:'row', justifyContent:'center', alignItems:'center',}}
+                                onPress={() => {
+                                }}>
+                                <View style={{height:'100%', flexDirection:'column', justifyContent:'center'}} >
+                                    <SvgMusicPlay stroke={ScreenUtil.getTextColor('keyColor')} width={ScreenUtil.scaleHeight(40)*0.6} height={ScreenUtil.scaleHeight(40)*0.6} />
+                                </View>
+                            </TouchableOpacity>
+                        </View>
+                        <TouchableOpacity style={{height:'100%', flexDirection:'column', position:'absolute', top:0, left:0, paddingTop: ScreenUtil.scaleHeight(15)}}
+                            onPress={async () => {
+                                this.state.musicList.show = true;
+                                //this.state.musicList.type = 'group';
+                                this.state.musicList.info = item;
+                                this.setState({musicList: this.state.musicList});
+                                }}
+                            >
+                            <View style={{width:'100%', flexDirection:'row'}}>
+                                <Text style={{color:'black', fontSize: ScreenUtil.scaleHeight(16)}}>
+                                    {item.groupName} ({item.list.length})
+                                </Text>
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            );
+        }
         return (
             <TouchableOpacity style={{width:'100%', flexDirection:'row', justifyContent:'center', alignItems:'center'}}
                 onPress={() => {
                     this.state.musicList.show = true;
-                    this.state.musicList.type = 'folder';
+                    //this.state.musicList.type = 'folder';
                     this.state.musicList.info = item;
                     this.setState({musicList: this.state.musicList});
                 }}
             >
                 <View style={{width:'90%', height:ScreenUtil.scaleHeight(70), flexDirection:'column', alignItems:'center', paddingTop: ScreenUtil.scaleHeight(15)}}>
-                    <Text style={{color:'black', fontSize: ScreenUtil.scaleHeight(16)}}>{item.folderName} ({item.list.length})</Text>
+                    <Text style={{color:'black', fontSize: ScreenUtil.scaleHeight(16)}}>
+                        {item.folderName} ({item.list.length})
+                    </Text>
                     <Text style={{color:'gray', fontSize: ScreenUtil.scaleHeight(12)}}>{item.key}</Text>
                 </View>
             </TouchableOpacity>

@@ -6,6 +6,7 @@ import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.os.Bundle
 import android.media.session.MediaSession
 import android.media.session.PlaybackState
 import java.io.File
@@ -16,6 +17,12 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     private var mediaSession: MediaSession? = null
     private val progressHandler = Handler(Looper.getMainLooper())
     private val progressIntervalMs = 1000L
+
+    init {
+        // 注册此模块到 MediaButtonReceiver
+        MediaButtonReceiver.setAudioModule(this)
+    }
+
     private val progressRunnable = object : Runnable {
         override fun run() {
             val currentPlayer = player ?: return
@@ -42,7 +49,11 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
         if (mediaSession != null) return
 
         val session = MediaSession(reactApplicationContext, "RNAudioModule")
-        session.setFlags(MediaSession.FLAG_HANDLES_MEDIA_BUTTONS or MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS)
+        session.setFlags(
+            MediaSession.FLAG_HANDLES_MEDIA_BUTTONS or 
+            MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS
+        )
+        
         session.setCallback(object : MediaSession.Callback() {
             override fun onPlay() {
                 internalResume()
@@ -74,9 +85,10 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
                 })
             }
         })
+        
         session.isActive = true
         mediaSession = session
-        updatePlaybackState(PlaybackState.STATE_NONE)
+        updatePlaybackState(PlaybackState.STATE_STOPPED)
     }
 
     private fun updatePlaybackState(state: Int) {
@@ -139,6 +151,7 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     fun play(url: String, promise: Promise) {
         var settled = false
         try {
+            ensureMediaSession()  // 确保 MediaSession 已初始化
             val currentPlayer = player ?: MediaPlayer().also { player = it }
             val uri = Uri.parse(url)
 
@@ -202,6 +215,7 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
 
     @ReactMethod
     fun pause(promise: Promise) {
+        ensureMediaSession()
         internalPause()
         promise.resolve(true)
     }
@@ -209,6 +223,7 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     @ReactMethod
     fun resume(promise: Promise) {
         try {
+            ensureMediaSession()
             val currentPlayer = player
             if (currentPlayer == null) {
                 promise.reject("E_NO_PLAYER", "Player is not initialized")
@@ -243,6 +258,34 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
         mediaSession?.isActive = false
         mediaSession?.release()
         mediaSession = null
+    }
+
+    internal fun handleMediaButton(action: String) {
+        when (action) {
+            "play" -> {
+                if (player != null && !player!!.isPlaying) {
+                    internalResume()
+                }
+            }
+            "pause" -> {
+                if (player != null && player!!.isPlaying) {
+                    internalPause()
+                }
+            }
+            "playPause" -> {
+                if (player == null) {
+                    return
+                }
+                if (player!!.isPlaying) {
+                    internalPause()
+                } else {
+                    internalResume()
+                }
+            }
+            "next" -> sendEvent("onRemoteNext", null)
+            "previous" -> sendEvent("onRemotePrevious", null)
+            "stop" -> internalStop()
+        }
     }
 
     private fun startProgressUpdates() {

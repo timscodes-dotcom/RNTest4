@@ -14,8 +14,7 @@ var global = {
 
     enableBioAuthen: false,
 
-    chatGrpList: [],
-    showChatGrp: '',
+    groupList: [{key:'create', groupName:'Welcome', status: '', list: []}],
 
     inputHeight: ScreenUtil.scaleHeight(45),
     titleHeight: ScreenUtil.scaleHeight(50),
@@ -278,6 +277,8 @@ var global = {
             //console.log('Progress:', e);
             DeviceEventEmitter.emit('cmd', {cmd:'playProgress', msg:e});
         });
+        this.audioEvents.addListener('onRemotePlay', e => console.log('Remote Play'));
+        this.audioEvents.addListener('onRemoteStop', e => console.log('Remote Stop'));
 
         /*
         // 调用播放
