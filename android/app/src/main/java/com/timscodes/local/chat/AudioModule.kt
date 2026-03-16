@@ -18,10 +18,30 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     private var mediaSession: MediaSession? = null
     private val progressHandler = Handler(Looper.getMainLooper())
     private val progressIntervalMs = 1000L
+    private var isDestroyed = false
 
     init {
+        // 重置销毁标志，确保新实例可用
+        isDestroyed = false
+        
         // 注册此模块到 MediaButtonReceiver
         MediaButtonReceiver.setAudioModule(this)
+        // 保存当前实例用于全局访问
+        setCurrentInstance(this)
+    }
+    
+    override fun onCatalystInstanceDestroy() {
+        super.onCatalystInstanceDestroy()
+        // Catalyst 实例销毁时清理资源
+        try {
+            // 停止服务和通知
+            val serviceIntent = Intent(reactApplicationContext, AudioService::class.java)
+            serviceIntent.action = AudioService.ACTION_STOP
+            reactApplicationContext.startService(serviceIntent)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        _internalRelease()
     }
 
     private val progressRunnable = object : Runnable {
@@ -115,14 +135,25 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
         )
     }
 
-    private fun internalPause() {
+    internal fun internalPause() {
         player?.pause()
         stopProgressUpdates()
         updatePlaybackState(PlaybackState.STATE_PAUSED)
+        
+        // 暂停时停止前台服务
+        val serviceIntent = Intent(reactApplicationContext, AudioService::class.java)
+        serviceIntent.action = AudioService.ACTION_STOP
+        reactApplicationContext.startService(serviceIntent)
+        
         sendEvent("onPause", null)
     }
 
-    private fun internalResume() {
+    internal fun internalResume() {
+        // 恢复时启动前台服务
+        val serviceIntent = Intent(reactApplicationContext, AudioService::class.java)
+        serviceIntent.action = AudioService.ACTION_PLAY
+        reactApplicationContext.startService(serviceIntent)
+        
         player?.start()
         startProgressUpdates()
         updatePlaybackState(PlaybackState.STATE_PLAYING)
@@ -133,21 +164,30 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
         try {
             player?.stop()
             player?.reset()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
+        
         stopProgressUpdates()
         updatePlaybackState(PlaybackState.STATE_STOPPED)
         
         // 停止前台服务
-        val serviceIntent = Intent(reactApplicationContext, AudioService::class.java)
-        serviceIntent.action = AudioService.ACTION_STOP
-        reactApplicationContext.startService(serviceIntent)
+        try {
+            val serviceIntent = Intent(reactApplicationContext, AudioService::class.java)
+            serviceIntent.action = AudioService.ACTION_STOP
+            reactApplicationContext.startService(serviceIntent)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
         
         sendEvent("onStop", null)
     }
 
     @ReactMethod
     fun initPlayer() {
+        // 重置销毁标志
+        isDestroyed = false
+        
         if (player == null) {
             player = MediaPlayer()
         }
@@ -156,6 +196,9 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
 
     @ReactMethod
     fun play(url: String, promise: Promise) {
+        // 重置销毁标志以支持重新启动
+        isDestroyed = false
+        
         var settled = false
         try {
             // 启动前台服务保持应用活跃
@@ -235,10 +278,19 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     @ReactMethod
     fun resume(promise: Promise) {
         try {
+            // 重置销毁标志
+            isDestroyed = false
+            
             ensureMediaSession()
+            
+            // 如果 player 为 null，说明是新的或被销毁了，需要初始化
+            if (player == null) {
+                initPlayer()
+            }
+            
             val currentPlayer = player
             if (currentPlayer == null) {
-                promise.reject("E_NO_PLAYER", "Player is not initialized")
+                promise.reject("E_NO_PLAYER", "Player initialization failed")
                 return
             }
 
@@ -270,17 +322,60 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
 
     @ReactMethod
     fun release() {
-        stopProgressUpdates()
-        player?.release()
+        if (isDestroyed) return
+        _internalRelease()
+    }
+    
+    private fun _internalRelease() {
+        // 注意：不设置 isDestroyed = true 以支持重启
+        
+        try {
+            stopProgressUpdates()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        
+        try {
+            player?.stop()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        
+        try {
+            player?.release()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        
         player = null
-        mediaSession?.isActive = false
-        mediaSession?.release()
+        
+        try {
+            mediaSession?.isActive = false
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        
+        try {
+            mediaSession?.release()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        
         mediaSession = null
         
         // 停止前台服务
-        val serviceIntent = Intent(reactApplicationContext, AudioService::class.java)
-        serviceIntent.action = AudioService.ACTION_STOP
-        reactApplicationContext.startService(serviceIntent)
+        try {
+            val serviceIntent = Intent(reactApplicationContext, AudioService::class.java)
+            serviceIntent.action = AudioService.ACTION_STOP
+            reactApplicationContext.startService(serviceIntent)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+    
+    // 公共方法用于外部强制停止播放
+    fun forceStop() {
+        _internalRelease()
     }
 
     internal fun handleMediaButton(action: String) {
@@ -324,5 +419,37 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
         reactApplicationContext
             .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
             .emit(eventName, params)
+    }
+
+    companion object {
+        private var currentInstance: AudioModule? = null
+
+        fun setCurrentInstance(instance: AudioModule) {
+            currentInstance = instance
+        }
+
+        fun forceStopPlayback() {
+            try {
+                currentInstance?.forceStop()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
+        fun pausePlayback() {
+            try {
+                currentInstance?.internalPause()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
+        fun resumePlayback() {
+            try {
+                currentInstance?.internalResume()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 }

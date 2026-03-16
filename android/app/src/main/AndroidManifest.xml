@@ -8,6 +8,7 @@
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
   <uses-permission android:name="android.permission.WAKE_LOCK" />
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
       android:name=".MainApplication"
@@ -41,6 +42,15 @@
         android:exported="true">
         <intent-filter>
           <action android:name="android.intent.action.MEDIA_BUTTON" />
+        </intent-filter>
+      </receiver>
+      
+      <receiver
+        android:name=".NotificationActionReceiver"
+        android:exported="true">
+        <intent-filter>
+          <action android:name="com.timscodes.local.chat.ACTION_PAUSE" />
+          <action android:name="com.timscodes.local.chat.ACTION_PLAY_RESUME" />
         </intent-filter>
       </receiver>
     </application>

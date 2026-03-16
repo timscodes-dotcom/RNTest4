@@ -1,12 +1,19 @@
 package com.timscodes.local.chat
 
 import android.os.Bundle
+import android.os.Build
+import android.Manifest
+import android.content.Intent
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
 import com.facebook.react.defaults.DefaultReactActivityDelegate
 
 class MainActivity : ReactActivity() {
+
+  private val NOTIFICATION_PERMISSION_CODE = 100
 
   /**
    * Returns the name of the main component registered from JavaScript. This is used to schedule
@@ -23,5 +30,30 @@ class MainActivity : ReactActivity() {
   
   override fun onCreate(savedInstanceState: Bundle?) {
       super.onCreate(null) // 🚀 关键：阻止 fragment restore
+      
+      // 为 Android 13+ 请求通知权限
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+          if (ContextCompat.checkSelfPermission(
+                  this,
+                  Manifest.permission.POST_NOTIFICATIONS
+              ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+          ) {
+              ActivityCompat.requestPermissions(
+                  this,
+                  arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                  NOTIFICATION_PERMISSION_CODE
+              )
+          }
+      }
+  }
+  
+  override fun onDestroy() {
+      super.onDestroy()
+      
+      // 强制停止 AudioModule 中的播放
+      AudioModule.forceStopPlayback()
+      
+      // 停止前台服务
+      AudioService.stopAllPlayback(this)
   }
 }
