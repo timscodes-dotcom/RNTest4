@@ -37,7 +37,7 @@ class ViewMusicList extends Component {
                 item: null,
                 err: false,
             },
-            showAddMenu: false,
+            showAddMenu: '',
         };
 
         for (let i=0; i<props.info.list.length; i++) {
@@ -130,7 +130,7 @@ class ViewMusicList extends Component {
                             <TouchableOpacity style={{height:'100%', justifyContent:'center', alignItems:'center', backgroundColor:'lightgray', paddingLeft: ScreenUtil.scaleWidth(20), paddingRight: ScreenUtil.scaleWidth(20), borderRadius: ScreenUtil.scaleHeight(10)}}
                                     onPress={() => {
                                         //console.log(global.groupList);
-                                        this.setState({showAddMenu: true});
+                                        this.setState({showAddMenu: 'options'});
                                     }}
                                 >
                                 <SvgListAdd width={ScreenUtil.scaleHeight(20)} height={ScreenUtil.scaleHeight(20)} color={'black'} />
@@ -172,7 +172,69 @@ class ViewMusicList extends Component {
                     />
                 </View>
 
-                {this.state.showAddMenu === true && this.renderAddMenu()}
+                {this.state.showAddMenu === 'options' && this.renderAddMenu()}
+                {this.state.showAddMenu === 'selectGroup' && this.renderSelectGroupMenu()}
+            </View>
+        );
+    }
+
+    renderSelectGroupMenu() {
+        return (
+            <View style={{position:'absolute', top:0, left:0, width:'100%', height:'100%', backgroundColor:'rgba(0,0,0,0.5)', justifyContent:'center', alignItems:'center'}}
+                onPress={() => {
+                    this.setState({showAddMenu: 'options'});
+                }}
+            >
+                <MyBackHandler hardwareBackPress={(e) => {
+                    this.setState({showAddMenu: 'options'});
+                    return true;
+                }}/>
+                <View style={{width:'80%', backgroundColor:'white', borderRadius: ScreenUtil.scaleHeight(20), justifyContent:'center', alignItems:'center', flexDirection:'column', paddingTop: ScreenUtil.scaleHeight(15), paddingBottom: ScreenUtil.scaleHeight(15)}}>
+                    <View style={{width:'100%', height:ScreenUtil.scaleHeight(40), flexDirection:'row-reverse', paddingRight: ScreenUtil.scaleWidth(20)}}>
+                        <TouchableOpacity style={{width:ScreenUtil.scaleHeight(40), height:ScreenUtil.scaleHeight(40), justifyContent:'center', alignItems:'center', backgroundColor:'lightgray', borderRadius: ScreenUtil.scaleHeight(20)}}
+                            onPress={() => {
+                                this.setState({showAddMenu: ''});
+                            }}
+                        >
+                            <SvgClose width={ScreenUtil.scaleHeight(20)} height={ScreenUtil.scaleHeight(20)} color={'black'} />
+                        </TouchableOpacity>
+                        <View style={{width:ScreenUtil.scaleWidth(10)}} />
+                        <TouchableOpacity style={{width:ScreenUtil.scaleHeight(40), height:ScreenUtil.scaleHeight(40), justifyContent:'center', alignItems:'center', backgroundColor:'lightgray', borderRadius: ScreenUtil.scaleHeight(20)}}
+                            onPress={() => {
+                                this.setState({showAddMenu: 'options'});
+                            }}
+                        >
+                            <Text style={{color:'black', fontSize: ScreenUtil.scaleHeight(16)}}>{'<<'}</Text>
+                        </TouchableOpacity>
+                    </View>
+                    <ScrollView style={{width:'100%', backgroundColor:'lightblue', maxHeight: ScreenUtil.scaleHeight(300)}}>
+                        {global.groupList.map((item, index) => {
+                            if (item.key === 'create') {
+                                return null;
+                            }
+                            return (
+                                <TouchableOpacity key={item.key} style={{width:'100%', height:ScreenUtil.scaleHeight(50), borderRadius: ScreenUtil.scaleHeight(20), justifyContent:'center', alignItems:'center'}}
+                                    onPress={() => {
+                                        const selectedList = this.state.list.filter(i => i.selected);
+                                        if (selectedList.length === 0) {
+                                            Alert.alert('Info', '请至少选择一首歌曲');
+                                            return;
+                                        }
+                                        item.list = item.list.concat(selectedList);
+                                        global.saveClientBuffer('groupList', JSON.stringify(global.groupList));
+                                        DeviceEventEmitter.emit('cmd', {cmd:'groupListUpdated',});
+                                        //this.setState({showAddMenu: ''});
+                                        if (this.props.onCloseFunc) {
+                                            this.props.onCloseFunc();
+                                        }
+                                    }}
+                                >
+                                    <Text style={{color:'black', fontSize: ScreenUtil.scaleHeight(16)}}>{item.groupName}</Text>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </ScrollView>
+                </View>
             </View>
         );
     }
@@ -181,18 +243,18 @@ class ViewMusicList extends Component {
         return (
             <View style={{position:'absolute', top:0, left:0, width:'100%', height:'100%', backgroundColor:'rgba(0,0,0,0.5)', justifyContent:'center', alignItems:'center'}}
                 onPress={() => {
-                    this.setState({showAddMenu: false});
+                    this.setState({showAddMenu: ''});
                 }}
             >
                 <MyBackHandler hardwareBackPress={(e) => {
-                    this.setState({showAddMenu: false});
+                    this.setState({showAddMenu: ''});
                     return true;
                 }}/>
                 <View style={{width:'80%', backgroundColor:'white', borderRadius: ScreenUtil.scaleHeight(20), justifyContent:'center', alignItems:'center', flexDirection:'column', paddingTop: ScreenUtil.scaleHeight(15), paddingBottom: ScreenUtil.scaleHeight(15)}}>
                     <View style={{width:'100%', height:ScreenUtil.scaleHeight(40), flexDirection:'row-reverse', paddingRight: ScreenUtil.scaleWidth(20)}}>
                         <TouchableOpacity style={{width:ScreenUtil.scaleHeight(40), height:ScreenUtil.scaleHeight(40), justifyContent:'center', alignItems:'center', backgroundColor:'lightgray', borderRadius: ScreenUtil.scaleHeight(20)}}
                             onPress={() => {
-                                this.setState({showAddMenu: false});
+                                this.setState({showAddMenu: ''});
                             }}
                         >
                             <SvgClose width={ScreenUtil.scaleHeight(20)} height={ScreenUtil.scaleHeight(20)} color={'black'} />
@@ -228,7 +290,16 @@ class ViewMusicList extends Component {
                     >
                         <Text style={{color:'black', fontSize: ScreenUtil.scaleHeight(16)}}>追加到播放列表</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={{width:'100%', height:ScreenUtil.scaleHeight(50), borderRadius: ScreenUtil.scaleHeight(20), justifyContent:'center', alignItems:'center'}}>
+                    <TouchableOpacity style={{width:'100%', height:ScreenUtil.scaleHeight(50), borderRadius: ScreenUtil.scaleHeight(20), justifyContent:'center', alignItems:'center'}}
+                        onPress={() => {
+                            const selectedList = this.state.list.filter(item => item.selected);
+                            if (selectedList.length === 0) {
+                                Alert.alert('Info', '请至少选择一首歌曲');
+                                return;
+                            }
+                            this.setState({showAddMenu: 'selectGroup'});
+                        }}
+                    >
                         <Text style={{color:'black', fontSize: ScreenUtil.scaleHeight(16)}}>添加到歌单</Text>
                     </TouchableOpacity>
                     {/* 新建歌单*/}
@@ -250,7 +321,12 @@ class ViewMusicList extends Component {
                                     Alert.alert('歌单名称不能为空');
                                     return;
                                 }
-                                const newGroup = {key: 'group_' + Date.now(), groupName: this.newGroupName || '新歌单', list: []};
+                                const selectedList = this.state.list.filter(item => item.selected);
+                                if (selectedList.length === 0) {
+                                    Alert.alert('Info', '请至少选择一首歌曲');
+                                    return;
+                                }
+                                const newGroup = {key: 'group_' + Date.now(), groupName: this.newGroupName || '新歌单', list: selectedList};
                                 global.groupList.push(newGroup);
                                 global.saveClientBuffer('groupList', JSON.stringify(global.groupList));
                                 DeviceEventEmitter.emit('cmd', {cmd:'groupListUpdated',});

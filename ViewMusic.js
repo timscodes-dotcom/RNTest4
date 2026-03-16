@@ -15,6 +15,7 @@ import CheckBox from '@react-native-community/checkbox';
 
 import ViewMusicList from './ViewMusicList';
 import ViewPlayList from './ViewPlayList';
+import ViewGroupMusicList from './ViewGroupMusicList';
 
 import SvgList from './svg_component/List';
 import SvgListMusic from './svg_component/ListMusic';
@@ -400,7 +401,13 @@ class ViewMusic extends Component {
                         </View>
                     </View>
                 </View>
-                {this.state.musicList.show === true && <ViewMusicList info={this.state.musicList.info} onCloseFunc={() => {
+                {this.state.musicList.show === true && this.state.musicList.type==='folder' && 
+                <ViewMusicList info={this.state.musicList.info} onCloseFunc={() => {
+                    this.state.musicList.show = false;
+                    this.setState({musicList: this.state.musicList});
+                }} />}
+                {this.state.musicList.show === true && this.state.musicList.type==='group' && 
+                <ViewGroupMusicList info={this.state.musicList.info} onCloseFunc={() => {
                     this.state.musicList.show = false;
                     this.setState({musicList: this.state.musicList});
                 }} />}
@@ -539,7 +546,7 @@ class ViewMusic extends Component {
                         <TouchableOpacity style={{height:'100%', flexDirection:'column', position:'absolute', top:0, left:0, paddingTop: ScreenUtil.scaleHeight(15)}}
                             onPress={async () => {
                                 this.state.musicList.show = true;
-                                //this.state.musicList.type = 'group';
+                                this.state.musicList.type = 'group';
                                 this.state.musicList.info = item;
                                 this.setState({musicList: this.state.musicList});
                                 }}
@@ -558,7 +565,7 @@ class ViewMusic extends Component {
             <TouchableOpacity style={{width:'100%', flexDirection:'row', justifyContent:'center', alignItems:'center'}}
                 onPress={() => {
                     this.state.musicList.show = true;
-                    //this.state.musicList.type = 'folder';
+                    this.state.musicList.type = 'folder';
                     this.state.musicList.info = item;
                     this.setState({musicList: this.state.musicList});
                 }}

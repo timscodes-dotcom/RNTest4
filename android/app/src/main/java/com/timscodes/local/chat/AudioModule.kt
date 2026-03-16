@@ -9,6 +9,7 @@ import android.os.Looper
 import android.os.Bundle
 import android.media.session.MediaSession
 import android.media.session.PlaybackState
+import android.content.Intent
 import java.io.File
 
 class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
@@ -136,6 +137,12 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
         }
         stopProgressUpdates()
         updatePlaybackState(PlaybackState.STATE_STOPPED)
+        
+        // 停止前台服务
+        val serviceIntent = Intent(reactApplicationContext, AudioService::class.java)
+        serviceIntent.action = AudioService.ACTION_STOP
+        reactApplicationContext.startService(serviceIntent)
+        
         sendEvent("onStop", null)
     }
 
@@ -151,6 +158,11 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     fun play(url: String, promise: Promise) {
         var settled = false
         try {
+            // 启动前台服务保持应用活跃
+            val serviceIntent = Intent(reactApplicationContext, AudioService::class.java)
+            serviceIntent.action = AudioService.ACTION_PLAY
+            reactApplicationContext.startService(serviceIntent)
+            
             ensureMediaSession()  // 确保 MediaSession 已初始化
             val currentPlayer = player ?: MediaPlayer().also { player = it }
             val uri = Uri.parse(url)
@@ -241,6 +253,12 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     @ReactMethod
     fun stop(promise: Promise) {
         internalStop()
+        
+        // 停止前台服务
+        val serviceIntent = Intent(reactApplicationContext, AudioService::class.java)
+        serviceIntent.action = AudioService.ACTION_STOP
+        reactApplicationContext.startService(serviceIntent)
+        
         promise.resolve(true)
     }
 
@@ -258,6 +276,11 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
         mediaSession?.isActive = false
         mediaSession?.release()
         mediaSession = null
+        
+        // 停止前台服务
+        val serviceIntent = Intent(reactApplicationContext, AudioService::class.java)
+        serviceIntent.action = AudioService.ACTION_STOP
+        reactApplicationContext.startService(serviceIntent)
     }
 
     internal fun handleMediaButton(action: String) {

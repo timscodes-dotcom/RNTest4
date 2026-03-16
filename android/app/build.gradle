@@ -123,6 +123,10 @@ dependencies {
 
     implementation 'com.facebook.fresco:fresco:3.6.0'
     implementation 'com.facebook.fresco:animated-gif:3.6.0'
+    
+    // AndroidX dependencies for notifications
+    implementation 'androidx.core:core:1.13.1'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
