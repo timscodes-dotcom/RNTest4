@@ -1,4 +1,4 @@
-package com.timscodes.local.chat
+package com.timscodes.music
 
 import com.facebook.react.bridge.*
 import com.facebook.react.modules.core.DeviceEventManagerModule

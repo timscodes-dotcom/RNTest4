@@ -68,7 +68,7 @@
     "type": "modules",
     "jsSrcsDir": "specs",
     "android": {
-      "javaPackageName": "com.timscodes.local.chat.specs"
+      "javaPackageName": "com.timscodes.music.specs"
     },
     "ios": {
       "modulesProvider": {

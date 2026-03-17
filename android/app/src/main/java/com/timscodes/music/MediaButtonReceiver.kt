@@ -1,4 +1,4 @@
-package com.timscodes.local.chat
+package com.timscodes.music
 
 import android.content.BroadcastReceiver
 import android.content.Context

@@ -86,7 +86,7 @@ void MD5Pwd1(const char * _in, char * pwd)
 }
 
 
-extern "C" JNIEXPORT jstring JNICALL Java_com_timscodes_local_chat_MyNativeModule_jniMD5Pwd1(
+extern "C" JNIEXPORT jstring JNICALL Java_com_timscodes_music_MyNativeModule_jniMD5Pwd1(
         JNIEnv *env,
         jobject /* this */ obj,
         jstring _in)
@@ -137,7 +137,7 @@ void onTestMessage(const char * msg/*, int len*/)
     }
 }
 
-extern "C" JNIEXPORT jstring JNICALL Java_com_timscodes_local_chat_MyNativeModule_jniOnLoad(
+extern "C" JNIEXPORT jstring JNICALL Java_com_timscodes_music_MyNativeModule_jniOnLoad(
         JNIEnv* env,
         jobject /* this */) 
 {
@@ -163,7 +163,7 @@ extern "C"  JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm,void* reserved)
 }
 */
 
-extern "C" JNIEXPORT jstring JNICALL Java_com_timscodes_local_chat_MyNativeModule_stringFromJNI(
+extern "C" JNIEXPORT jstring JNICALL Java_com_timscodes_music_MyNativeModule_stringFromJNI(
         JNIEnv* env,
         jobject /* this */) {
 
@@ -193,7 +193,7 @@ long long __jniHton64i(long long i)
 	return iRet;
 }
 
-extern "C" JNIEXPORT jstring JNICALL Java_com_timscodes_local_chat_MyNativeModule_jniHton64i(
+extern "C" JNIEXPORT jstring JNICALL Java_com_timscodes_music_MyNativeModule_jniHton64i(
         JNIEnv* env,
         jobject /* this */ obj,
 		jstring value) {
@@ -205,7 +205,7 @@ extern "C" JNIEXPORT jstring JNICALL Java_com_timscodes_local_chat_MyNativeModul
 	return env->NewStringUTF(ret);
 }
 
-extern "C" JNIEXPORT jstring JNICALL Java_com_timscodes_local_chat_MyNativeModule_jniTestWriteFile(
+extern "C" JNIEXPORT jstring JNICALL Java_com_timscodes_music_MyNativeModule_jniTestWriteFile(
         JNIEnv* env,
         jobject /* this */ obj,
 		jstring dir) {
@@ -282,7 +282,7 @@ std::string initFolders(const char * path)
   return ret;
 }
 
-extern "C" JNIEXPORT jstring JNICALL Java_com_timscodes_local_chat_MyNativeModule_jniSetCallback(
+extern "C" JNIEXPORT jstring JNICALL Java_com_timscodes_music_MyNativeModule_jniSetCallback(
         JNIEnv *env,
         jobject thiz,
         jstring packageName,
@@ -368,7 +368,7 @@ extern "C" JNIEXPORT jstring JNICALL Java_com_timscodes_local_chat_MyNativeModul
 
 }
 
-extern "C" JNIEXPORT jstring JNICALL Java_com_timscodes_local_chat_MyNativeModule_jniJsonCmd(
+extern "C" JNIEXPORT jstring JNICALL Java_com_timscodes_music_MyNativeModule_jniJsonCmd(
         JNIEnv* env,
         jobject /* this */ obj,
 		jstring jsonStr) {

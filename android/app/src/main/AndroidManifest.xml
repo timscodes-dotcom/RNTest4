@@ -49,8 +49,8 @@
         android:name=".NotificationActionReceiver"
         android:exported="true">
         <intent-filter>
-          <action android:name="com.timscodes.local.chat.ACTION_PAUSE" />
-          <action android:name="com.timscodes.local.chat.ACTION_PLAY_RESUME" />
+          <action android:name="com.timscodes.music.ACTION_PAUSE" />
+          <action android:name="com.timscodes.music.ACTION_PLAY_RESUME" />
         </intent-filter>
       </receiver>
     </application>

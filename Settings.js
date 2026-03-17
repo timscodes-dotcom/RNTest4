@@ -1,6 +1,6 @@
 
 export const googleAd = {
-    enable: true,
+    enable: false,
     bottomBarHeight: 130,
 }
 

@@ -77,9 +77,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.timscodes.local.chat"
+    namespace "com.timscodes.music"
     defaultConfig {
-        applicationId "com.timscodes.local.chat"
+        applicationId "com.timscodes.music"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

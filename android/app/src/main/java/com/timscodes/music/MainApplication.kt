@@ -1,4 +1,4 @@
-package com.timscodes.local.chat
+package com.timscodes.music
 
 import android.app.Application
 import com.facebook.react.PackageList
@@ -7,8 +7,8 @@ import com.facebook.react.ReactHost
 import com.facebook.react.ReactNativeApplicationEntryPoint.loadReactNative
 import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
 
-import com.timscodes.local.chat.MyNativePackage
-import com.timscodes.local.chat.AudioPackage
+import com.timscodes.music.MyNativePackage
+import com.timscodes.music.AudioPackage
 
 class MainApplication : Application(), ReactApplication {
 

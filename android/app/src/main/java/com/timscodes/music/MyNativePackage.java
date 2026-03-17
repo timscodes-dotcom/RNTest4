@@ -1,6 +1,6 @@
 // MyNativePackage.java
 
-package com.timscodes.local.chat;
+package com.timscodes.music;
 
 import com.facebook.react.ReactPackage;
 import com.facebook.react.bridge.NativeModule;
@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import com.timscodes.local.chat.MyNativeModule;
+import com.timscodes.music.MyNativeModule;
 
 public class MyNativePackage implements ReactPackage {
 

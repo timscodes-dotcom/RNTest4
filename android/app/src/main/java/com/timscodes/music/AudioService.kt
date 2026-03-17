@@ -1,4 +1,4 @@
-package com.timscodes.local.chat
+package com.timscodes.music
 
 import android.app.Service
 import android.app.NotificationManager
@@ -152,10 +152,10 @@ class AudioService : Service() {
     }
 
     companion object {
-        const val ACTION_PLAY = "com.timscodes.local.chat.ACTION_PLAY"
-        const val ACTION_STOP = "com.timscodes.local.chat.ACTION_STOP"
-        const val ACTION_PAUSE = "com.timscodes.local.chat.ACTION_PAUSE"
-        const val ACTION_PLAY_RESUME = "com.timscodes.local.chat.ACTION_PLAY_RESUME"
+        const val ACTION_PLAY = "com.timscodes.music.ACTION_PLAY"
+        const val ACTION_STOP = "com.timscodes.music.ACTION_STOP"
+        const val ACTION_PAUSE = "com.timscodes.music.ACTION_PAUSE"
+        const val ACTION_PLAY_RESUME = "com.timscodes.music.ACTION_PLAY_RESUME"
         
         // 静态方法用于强制停止所有播放
         fun stopAllPlayback(context: Context) {
