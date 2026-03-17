@@ -25,6 +25,22 @@ class NotificationActionReceiver : BroadcastReceiver() {
                     e.printStackTrace()
                 }
             }
+            AudioService.ACTION_PREV -> {
+                // 仅把上一首点击事件发给 JS
+                try {
+                    AudioModule.notifyPrevious()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+            AudioService.ACTION_NEXT -> {
+                // 仅把下一首点击事件发给 JS
+                try {
+                    AudioModule.notifyNext()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
         }
     }
 }

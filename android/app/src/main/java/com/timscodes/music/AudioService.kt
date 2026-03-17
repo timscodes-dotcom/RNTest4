@@ -31,9 +31,19 @@ class AudioService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_PLAY) {
             try {
-                startForeground()
+                startForegroundPlayback(true)
                 if (wakeLock?.isHeld == false) {
                     wakeLock?.acquire()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        } else if (intent?.action == ACTION_SET_PAUSED) {
+            try {
+                // 暂停后保留通知，并切换按钮为“继续播放”
+                updateNotification(false)
+                if (wakeLock?.isHeld == true) {
+                    wakeLock?.release()
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -60,10 +70,35 @@ class AudioService : Service() {
         stopSelf()
     }
 
-    private fun startForeground() {
+    private fun startForegroundPlayback(isPlaying: Boolean) {
         // 确保通知频道已创建
         createNotificationChannel()
-        
+
+        val notification = buildNotification(isPlaying)
+
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(NOTIFICATION_ID, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun updateNotification(isPlaying: Boolean) {
+        createNotificationChannel()
+        val notification = buildNotification(isPlaying)
+        try {
+            val manager = getSystemService(NotificationManager::class.java)
+            manager?.notify(NOTIFICATION_ID, notification)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun buildNotification(isPlaying: Boolean): android.app.Notification {
         // 创建点击通知时的意图 - 跳转到 MainActivity
         val notificationIntent = Intent(this, MainActivity::class.java)
         notificationIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -93,30 +128,46 @@ class AudioService : Service() {
             playIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("音乐播放中")
-            .setContentText("正在播放音乐...")
+
+        // 创建上一首按钮意图
+        val prevIntent = Intent(this, NotificationActionReceiver::class.java)
+        prevIntent.action = ACTION_PREV
+        val prevPendingIntent = PendingIntent.getBroadcast(
+            this,
+            3,
+            prevIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // 创建下一首按钮意图
+        val nextIntent = Intent(this, NotificationActionReceiver::class.java)
+        nextIntent.action = ACTION_NEXT
+        val nextPendingIntent = PendingIntent.getBroadcast(
+            this,
+            4,
+            nextIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val actionIcon = if (isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play
+        val actionText = if (isPlaying) "暂停" else "继续播放"
+        val actionIntent = if (isPlaying) pausePendingIntent else playPendingIntent
+
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle(if (isPlaying) "音乐播放中..." else "音乐已暂停")
+            //.setContentText("正在播放音乐...")
+            .setContentText("")
             .setSmallIcon(android.R.drawable.ic_media_play)
             .setContentIntent(pendingIntent)  // 点击通知时的动作
-            .addAction(android.R.drawable.ic_media_pause, "暂停", pausePendingIntent)
-            .addAction(android.R.drawable.ic_media_play, "播放", playPendingIntent)
+            .addAction(android.R.drawable.ic_media_previous, "prev", prevPendingIntent)
+            .addAction(actionIcon, actionText, actionIntent)
+            .addAction(android.R.drawable.ic_media_next, "next", nextPendingIntent)
             .setOngoing(true)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setShowWhen(false)
             .setAutoCancel(false)
             .build()
-
-        try {
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                startForeground(NOTIFICATION_ID, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
-            } else {
-                startForeground(NOTIFICATION_ID, notification)
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
     }
 
     private fun createNotificationChannel() {
@@ -134,6 +185,17 @@ class AudioService : Service() {
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        // 用户从最近任务中关闭应用时，强制停止播放并移除通知
+        try {
+            AudioModule.forceStopPlayback()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        stopPlayback()
+        super.onTaskRemoved(rootIntent)
+    }
 
     override fun onDestroy() {
         super.onDestroy()
@@ -156,6 +218,9 @@ class AudioService : Service() {
         const val ACTION_STOP = "com.timscodes.music.ACTION_STOP"
         const val ACTION_PAUSE = "com.timscodes.music.ACTION_PAUSE"
         const val ACTION_PLAY_RESUME = "com.timscodes.music.ACTION_PLAY_RESUME"
+        const val ACTION_PREV = "com.timscodes.music.ACTION_PREV"
+        const val ACTION_NEXT = "com.timscodes.music.ACTION_NEXT"
+        const val ACTION_SET_PAUSED = "com.timscodes.music.ACTION_SET_PAUSED"
         
         // 静态方法用于强制停止所有播放
         fun stopAllPlayback(context: Context) {

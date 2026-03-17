@@ -262,8 +262,14 @@ var global = {
     init() {
 
         // 监听事件
-        this.audioEvents.addListener('onPlay', e => console.log('Play:', e.url));
-        this.audioEvents.addListener('onPause', e => console.log('Paused'));
+        this.audioEvents.addListener('onPlay', e => {
+            console.log('Play:', e.url)
+            DeviceEventEmitter.emit('cmd', {cmd:'playStart', msg:e});
+        });
+        this.audioEvents.addListener('onPause', e => {
+            console.log('Paused')
+            DeviceEventEmitter.emit('cmd', {cmd:'playPause', msg:e});
+        });
         this.audioEvents.addListener('onStop', e => {
             console.log('Stopped')
             DeviceEventEmitter.emit('cmd', {cmd:'playStop', msg:e});
@@ -279,6 +285,14 @@ var global = {
         });
         this.audioEvents.addListener('onRemotePlay', e => console.log('Remote Play'));
         this.audioEvents.addListener('onRemoteStop', e => console.log('Remote Stop'));
+        this.audioEvents.addListener('onRemotePrevious', e => {
+            console.log('Remote Previous')
+            DeviceEventEmitter.emit('cmd', {cmd:'playPrevious', msg:e});
+        });
+        this.audioEvents.addListener('onRemoteNext', e => {
+            console.log('Remote Next')
+            DeviceEventEmitter.emit('cmd', {cmd:'playNext', msg:e});
+        });
 
         /*
         // 调用播放
@@ -505,6 +519,7 @@ var global = {
         this.playList.errFileCount = 0;
 
         this.saveClientBuffer('playList', JSON.stringify(this.playList));
+        DeviceEventEmitter.emit('cmd', {cmd:'playListUpdated',});
     },
 
     appendPlayList(list) {

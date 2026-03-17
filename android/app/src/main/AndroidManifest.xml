@@ -51,6 +51,8 @@
         <intent-filter>
           <action android:name="com.timscodes.music.ACTION_PAUSE" />
           <action android:name="com.timscodes.music.ACTION_PLAY_RESUME" />
+          <action android:name="com.timscodes.music.ACTION_PREV" />
+          <action android:name="com.timscodes.music.ACTION_NEXT" />
         </intent-filter>
       </receiver>
     </application>

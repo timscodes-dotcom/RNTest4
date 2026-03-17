@@ -139,12 +139,13 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
         player?.pause()
         stopProgressUpdates()
         updatePlaybackState(PlaybackState.STATE_PAUSED)
-        
-        // 暂停时停止前台服务
+
+        // 通知服务：切换通知按钮为“继续播放”并释放唤醒锁
         val serviceIntent = Intent(reactApplicationContext, AudioService::class.java)
-        serviceIntent.action = AudioService.ACTION_STOP
+        serviceIntent.action = AudioService.ACTION_SET_PAUSED
         reactApplicationContext.startService(serviceIntent)
-        
+
+        // 暂停时保留通知栏与前台服务，便于用户从通知继续播放
         sendEvent("onPause", null)
     }
 
@@ -447,6 +448,22 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
         fun resumePlayback() {
             try {
                 currentInstance?.internalResume()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
+        fun notifyPrevious() {
+            try {
+                currentInstance?.sendEvent("onRemotePrevious", null)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
+        fun notifyNext() {
+            try {
+                currentInstance?.sendEvent("onRemoteNext", null)
             } catch (e: Exception) {
                 e.printStackTrace()
             }

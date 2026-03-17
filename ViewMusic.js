@@ -173,6 +173,28 @@ class ViewMusic extends Component {
             else if (e.cmd == 'groupListUpdated') {
                 this.setState({groupList: global.groupList});
             }
+            else if (e.cmd == 'playListUpdated') {
+                this.setState({
+                    currTITLE: global.playList.list[global.playList.currentIndex]?.TITLE || '',
+                    currDURATION: global.formatDuration(global.playList.list[global.playList.currentIndex]?.DURATION) || '00:00',
+                })
+            }
+            else if (e.cmd == 'playPrevious') {
+                this.playNext('prev');
+            }
+            else if (e.cmd == 'playNext') {
+                this.playNext('next');
+            }
+            else if (e.cmd == 'playPause') {
+                if (this.state.playStatus == 'play') {
+                    this.setState({playStatus: 'pause'});
+                }
+            }
+            else if (e.cmd == 'playResume' || e.cmd == 'playStart') {
+                if (this.state.playStatus == 'pause') {
+                    this.setState({playStatus: 'play'});
+                }
+            }
         });
     }
 
@@ -191,7 +213,12 @@ class ViewMusic extends Component {
         let nextIndex = 0;
         if (this.state.repeatMode == 0) {
             // shuffle
-            nextIndex = Math.floor(Math.random() * global.playList.list.length);
+            if (action == 'start') {
+                nextIndex = global.playList.currentIndex;
+            }
+            else {
+                nextIndex = Math.floor(Math.random() * global.playList.list.length);
+            }
         }
         else if (this.state.repeatMode == 1) {
             // repeat all
@@ -411,10 +438,21 @@ class ViewMusic extends Component {
                     this.state.musicList.show = false;
                     this.setState({musicList: this.state.musicList});
                 }} />}
-                {this.state.playList.show === true && <ViewPlayList info={global.playList} onCloseFunc={() => {
-                    this.state.playList.show = false;
-                    this.setState({playList: this.state.playList});
-                }} />}
+                {this.state.playList.show === true && 
+                <ViewPlayList info={global.playList} 
+                    onUpdateFunc={(newList) => {
+                        global.playList.list = newList;
+                        global.saveClientBuffer('playList', JSON.stringify(global.playList));
+                    }}
+                    onChangePlaying={(index) => {
+                        global.playList.currentIndex = index;
+                        global.saveClientBuffer('playList', JSON.stringify(global.playList));
+                        this.playNext('start');
+                    }}
+                    onCloseFunc={() => {
+                        this.state.playList.show = false;
+                        this.setState({playList: this.state.playList});
+                    }} />}
             </View>
         );
     }

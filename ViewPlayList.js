@@ -20,6 +20,8 @@ class ViewPlayList extends Component {
     
     static propTypes = {
         onCloseFunc: PropTypes.func.isRequired,
+        onUpdateFunc: PropTypes.func,
+        onChangePlaying: PropTypes.func,
         type: PropTypes.string, 
         info: PropTypes.object,
     }
@@ -96,12 +98,9 @@ class ViewPlayList extends Component {
                         <View style={{width:'100%', height:'100%', flexDirection:'row', position:'absolute', top:0, left:0}}>
                             <TouchableOpacity style={{height:'100%', justifyContent:'center', alignItems:'center', backgroundColor:'lightgray', paddingLeft: ScreenUtil.scaleWidth(20), paddingRight: ScreenUtil.scaleWidth(20), borderRadius: ScreenUtil.scaleHeight(10)}}
                                     onPress={() => {
-                                        const selectedList = this.state.list.filter(item => item.selected);
-                                        if (selectedList.length === 0) {
-                                            Alert.alert('Info', '请至少选择一首歌曲');
-                                            return;
+                                        if (this.props.onChangePlaying) {
+                                            this.props.onChangePlaying(global.playList.currentIndex);
                                         }
-                                        global.updatePlayList(selectedList);
                                     }}
                                 >
                                 <Text style={{color:'black', fontSize: ScreenUtil.scaleHeight(16)}}>播放</Text>
@@ -114,6 +113,13 @@ class ViewPlayList extends Component {
                                             Alert.alert('Info', '请至少选择一首歌曲');
                                             return;
                                         }
+
+                                        const groupName = '新歌单' + (new Date()).toDateString();
+                                        const newGroup = {key: 'group_' + Date.now(), groupName: groupName, list: selectedList};
+                                        global.groupList.push(newGroup);
+                                        global.saveClientBuffer('groupList', JSON.stringify(global.groupList));
+                                        DeviceEventEmitter.emit('cmd', {cmd:'groupListUpdated',});
+                                        Alert.alert('Info', '已保存新歌单: ' + groupName);
                                     }}
                                 >
                                 <Text style={{color:'black', fontSize: ScreenUtil.scaleHeight(16)}}>保存新歌单</Text>
@@ -192,7 +198,16 @@ class ViewPlayList extends Component {
                             />
                         </View>
                         <View style={{width:ScreenUtil.scaleWidth(10)}} />
-                        <TouchableOpacity style={{height:'100%', width:ScreenUtil.scaleHeight(40), flexDirection:'row', justifyContent:'center', alignItems:'center',}}>
+                        <TouchableOpacity style={{height:'100%', width:ScreenUtil.scaleHeight(40), flexDirection:'row', justifyContent:'center', alignItems:'center',}}
+                            onPress={() => {
+                                const newList = [...this.state.list];
+                                newList.splice(index, 1);
+                                if (this.props.onUpdateFunc) {
+                                    this.props.onUpdateFunc(newList);
+                                }
+                                this.setState({ list: newList });
+                            }}
+                        >
                             <View style={{height:'100%', flexDirection:'column', justifyContent:'center'}} >
                                 <SvgListDelete stroke={ScreenUtil.getTextColor('keyColor')} width={ScreenUtil.scaleHeight(40)*0.6} height={ScreenUtil.scaleHeight(40)*0.6} />
                             </View>
@@ -200,33 +215,9 @@ class ViewPlayList extends Component {
                     </View>
                     <TouchableOpacity style={{height:'100%', flexDirection:'column', position:'absolute', top:0, left:0, paddingTop: ScreenUtil.scaleHeight(15)}}
                        onPress={async () => {
-                        /*
-                            try {
-                                if (Platform.OS === 'android') {
-                                    const granted = await global.requestAndroidAudioPermission();
-                                    if (!granted) {
-                                        Alert.alert('Permission', '未获得读取音频权限');
-                                        return;
-                                    }
-                                }
-
-                                if (global.playing == true) {
-                                    NativeModules.AudioModule.stop();
-                                    global.playing = false;
-                                    return;
-                                }
-
-                                console.log('Playing music file: ' + item.DATA);
-                                NativeModules.AudioModule.play('file://' + item.DATA).then(() => {
-                                    console.log('Music playback started successfully');
-                                    global.playing = true;
-                                }).catch((error) => {
-                                    console.log('Failed to start music playback: ' + (error?.message || JSON.stringify(error)));
-                                });
-                            } catch (error) {
-                                Alert.alert('Error', 'Failed to play music: ' + (error?.message || JSON.stringify(error)));
+                            if (this.props.onChangePlaying) {
+                                this.props.onChangePlaying(index);
                             }
-                                */
                         }}
                     >
                     <View style={{width:'100%', flexDirection:'row'}}>
