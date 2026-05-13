@@ -186,12 +186,12 @@ class ViewMusic extends Component {
                 this.playNext('next');
             }
             else if (e.cmd == 'playPause') {
-                if (this.state.playStatus == 'play') {
+                if (this.state.playStatus !== 'pause') {
                     this.setState({playStatus: 'pause'});
                 }
             }
             else if (e.cmd == 'playResume' || e.cmd == 'playStart') {
-                if (this.state.playStatus == 'pause') {
+                if (this.state.playStatus !== 'play') {
                     this.setState({playStatus: 'play'});
                 }
             }
@@ -574,7 +574,10 @@ class ViewMusic extends Component {
                                 </View>
                             </TouchableOpacity>
                             <TouchableOpacity style={{height:'100%', width:ScreenUtil.scaleHeight(40), flexDirection:'row', justifyContent:'center', alignItems:'center',}}
-                                onPress={() => {
+                                onPress={async() => {
+                                    await global.stopPlay();
+                                    global.updatePlayList(item.list);
+                                    this.playNext('start');
                                 }}>
                                 <View style={{height:'100%', flexDirection:'column', justifyContent:'center'}} >
                                     <SvgMusicPlay stroke={ScreenUtil.getTextColor('keyColor')} width={ScreenUtil.scaleHeight(40)*0.6} height={ScreenUtil.scaleHeight(40)*0.6} />

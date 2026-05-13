@@ -468,5 +468,21 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
                 e.printStackTrace()
             }
         }
+
+        fun notifyRemotePause() {
+            try {
+                currentInstance?.sendEvent("onRemotePause", null)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
+        fun notifyRemotePlay() {
+            try {
+                currentInstance?.sendEvent("onRemotePlay", null)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 }

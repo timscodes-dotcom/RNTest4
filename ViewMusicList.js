@@ -267,6 +267,7 @@ class ViewMusicList extends Component {
                                 Alert.alert('Info', '请至少选择一首歌曲');
                                 return;
                             }
+                            global.stopPlay();
                             global.updatePlayList(selectedList);
                             if (this.props.onCloseFunc) {
                                 this.props.onCloseFunc();

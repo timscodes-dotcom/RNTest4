@@ -13,6 +13,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
                 // 暂停播放
                 try {
                     AudioModule.pausePlayback()
+                    AudioModule.notifyRemotePause()
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
@@ -21,6 +22,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
                 // 恢复播放
                 try {
                     AudioModule.resumePlayback()
+                    AudioModule.notifyRemotePlay()
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }

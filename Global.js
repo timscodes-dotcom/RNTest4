@@ -263,28 +263,34 @@ var global = {
 
         // 监听事件
         this.audioEvents.addListener('onPlay', e => {
-            console.log('Play:', e.url)
+            console.log('Play: '+ (new Date()).toISOString() + ' ' + e.url)
             DeviceEventEmitter.emit('cmd', {cmd:'playStart', msg:e});
         });
         this.audioEvents.addListener('onPause', e => {
-            console.log('Paused')
+            console.log('Paused '+ (new Date()).toISOString())
             DeviceEventEmitter.emit('cmd', {cmd:'playPause', msg:e});
         });
         this.audioEvents.addListener('onStop', e => {
-            console.log('Stopped')
+            console.log('Stopped '+ (new Date()).toISOString())
             DeviceEventEmitter.emit('cmd', {cmd:'playStop', msg:e});
         });
         this.audioEvents.addListener('onComplete', e => {
             DeviceEventEmitter.emit('cmd', {cmd:'playComplete', msg:e});
-            console.log('onComplete')
+            console.log('onComplete '+ (new Date()).toISOString())
         });
         //onProgress
         this.audioEvents.addListener('onProgress', e => {
             //console.log('Progress:', e);
             DeviceEventEmitter.emit('cmd', {cmd:'playProgress', msg:e});
         });
-        this.audioEvents.addListener('onRemotePlay', e => console.log('Remote Play'));
-        this.audioEvents.addListener('onRemoteStop', e => console.log('Remote Stop'));
+        this.audioEvents.addListener('onRemotePlay', e => {
+            console.log('Remote Play')
+            DeviceEventEmitter.emit('cmd', {cmd:'playStart', msg:e});
+        });
+        this.audioEvents.addListener('onRemoteStop', e => {
+            console.log('Remote Stop')
+            DeviceEventEmitter.emit('cmd', {cmd:'playStop', msg:e});
+        });
         this.audioEvents.addListener('onRemotePrevious', e => {
             console.log('Remote Previous')
             DeviceEventEmitter.emit('cmd', {cmd:'playPrevious', msg:e});
@@ -514,6 +520,7 @@ var global = {
     },
 
     updatePlayList(newPlaylist) {
+
         this.playList.list = newPlaylist;
         this.playList.currentIndex = 0;
         this.playList.errFileCount = 0;

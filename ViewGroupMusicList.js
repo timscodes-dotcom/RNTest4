@@ -103,10 +103,11 @@ class ViewGroupMusicList extends Component {
                                             Alert.alert('Info', '请至少选择一首歌曲');
                                             return;
                                         }
+                                        global.stopPlay();
                                         global.updatePlayList(selectedList);
                                     }}
                                 >
-                                <Text style={{color:'black', fontSize: ScreenUtil.scaleHeight(16)}}>播放</Text>
+                                <Text style={{color:'black', fontSize: ScreenUtil.scaleHeight(16)}}>更新播放列表</Text>
                             </TouchableOpacity>
                             <View style={{width:ScreenUtil.scaleWidth(10)}} />
                             {/*
